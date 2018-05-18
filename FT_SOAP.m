@@ -6,7 +6,8 @@
 % Parameters %
 %%%%%%%%%%%%%%
 SN          = 10000;
-N_FILE      = 100;                               
+N_FILE      = 200;
+t           = 1:N_FILE;
 grid_size   = 0.1;
 Fs          = 1/grid_size;
 v0          = (-20 : grid_size : 20)';          % km/s
@@ -15,14 +16,16 @@ dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
+jitter      = [jitter', jitter'];
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
 
 % window function %
 window  = v1 * 0 + 1;
-bound = 9;
+bound   = 9;
 idx_w   = abs(v1) >= bound;
 window(idx_w)   = (cos((abs(v1(idx_w))-bound)/(10-bound)*pi) + 1) /2;
+
 h = figure;
 plot(v1, window)
 title('Window function')
@@ -39,7 +42,6 @@ close(h)
 % estimate the size of array FFT_power
 filename    = [dir2, 'CCF', num2str(1), '.dat'];
 A           = 1 - importdata(filename);
-% A           = A + normrnd(0, (1-A).^0.5/SN);
 A           = A(idx);
 A1          = A;
 [aa, bb, yy]    = FUNCTION_FFT(A, Fs);
@@ -48,7 +50,7 @@ FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
 % v_planet_array  = linspace(-3,3,101) / 1000.;
-v_planet_array  = 4 * sin((1:100)/100.*7*2*pi + 1) * 0.001;
+v_planet_array  = 4 * sin(t/100.*1.8*2*pi + 1) * 0.001;
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -60,19 +62,27 @@ hold on
 for n = 1:N_FILE
 
     v_planet    = v_planet_array(n);
-    filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
+    filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
 %     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
 %     plot(v0(idx),A(idx)-A1, '.')
     A_spline    = spline(v0, A, v1-v_planet);
-    f           = fit(v1, A_spline, 'a*exp(-((x-b)/c)^2)+d', 'StartPoint', [0.5, 0, 4, 0] );
-    RV_gauss(n) = f.b;    
     
+    % add noise
+    A_spline    = A_spline + normrnd(0, (1-A_spline).^0.5/SN);  
+    
+    % obtain line centroid 
+    idx_fit     = (v1 >= -9) & (v1 <= 9);
+    v_fit       = v1(idx_fit);
+    A_spline_fit= A_spline(idx_fit);
+    f           = fit(v_fit, A_spline_fit, 'a*exp(-((x-b)/c)^2)+d', 'StartPoint', [0.5, 0, 4, 0] );
+    RV_gauss(n) = f.b;
+    
+    % FT
     A_spline    = A_spline .* window;
-%     A_spline    = A_spline - 0.00183;
-    A_spline    = A_spline + normrnd(0, (1-A_spline).^0.5/SN);  % add noise
     plot(v1, A_spline)
     [FFT_frequency, FFT_power(:, n), Y(:, n)] = FUNCTION_FFT(A_spline, Fs);
+    
 end     
 hold off
 title('Stacked cross correlation function')
@@ -80,6 +90,7 @@ xlabel('Wavelength in RV [km/s]')
 ylabel('Normalized intensity')
 saveas(gcf,'1-Line_Profile','epsc')
 close(h)
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 % FT power in all epochs %
@@ -137,11 +148,11 @@ end
 %%%%%%%%%%%%%%%%%%%%%
 % Phase angle -> RV %
 %%%%%%%%%%%%%%%%%%%%%
-slope = zeros(1,100);
-RV_FT = zeros(1,100);
+slope = zeros(1,N_FILE);
+RV_FT = zeros(1,N_FILE);
 h = figure; 
 hold on
-for i = 1:100
+for i = 1:N_FILE
     % n = 1:50;
 %     n = (1025-100):(1025+100);
 %     n = (1025-40):(1025+40);    % plot for a particular frequency
@@ -242,7 +253,6 @@ close(h)
 % TIME SERIES
 h = figure; 
 hold on
-t = 1:100;
 plot(t, xx'-yy, 'b')
 xlabel('time')
 ylabel('Scaled jitter (m/s)')   
@@ -260,7 +270,7 @@ yy2 = xx'-yy;
 plot(xx2, yy2, 'o')
 xlabel('Real jitter (m/s)')
 ylabel('Scaled jitter (m/s)')   
-p_fit = polyfit(xx2,yy2',1)
+p_fit = polyfit(xx2,yy2, 1)
 saveas(gcf,'7-Jitter_scaling','epsc')
 close(h) 
 % p_fit =    0.2019    0.0023 FOR A THREE-SPOT CONFIGRATION (0.1867)
