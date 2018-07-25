@@ -6,7 +6,7 @@
 % Parameters %
 %%%%%%%%%%%%%%
 SN          = 10000;
-N_FILE      = 200;
+N_FILE      = 100;
 t           = 1:N_FILE;
 grid_size   = 0.1;
 Fs          = 1/grid_size;
@@ -16,24 +16,26 @@ dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
-jitter      = [jitter', jitter'];
+jitter      = jitter';
+% jitter      = [jitter', jitter'];
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
 
 % window function %
 window  = v1 * 0 + 1;
-bound   = 9;
+bound   = 8;
 idx_w   = abs(v1) >= bound;
 window(idx_w)   = (cos((abs(v1(idx_w))-bound)/(10-bound)*pi) + 1) /2;
 
-h = figure;
-plot(v1, window)
-title('Window function')
-xlabel('Wavelength in RV [km/s]')
-ylabel('Window function')
-saveas(gcf,'0-Window_function','epsc')
-close(h)
-% window  = v1 * 0 + 1;
+if 0
+    h = figure;
+    plot(v1, window)
+    title('Window function')
+    xlabel('Wavelength in RV [km/s]')
+    ylabel('Window function')
+    saveas(gcf,'0-Window_function','png')
+    close(h)
+end
 
 %%%%%%%%%%%%%%%%%%%
 % Calculate Power %
@@ -49,8 +51,8 @@ size1       = length(bb);
 FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
-% v_planet_array  = linspace(-3,3,101) / 1000.;
-v_planet_array  = 4 * sin(t/100.*1.8*2*pi + 1) * 0.001;
+v_planet_array  = linspace(0,10,N_FILE) / 1000.;
+% v_planet_array  = 2 * sin(t/100.*0.7*2*pi + 1) * 0.001;
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -61,7 +63,7 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n);
+    v_planet    = v_planet_array(n) * 0;
     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
 %     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
@@ -69,7 +71,7 @@ for n = 1:N_FILE
     A_spline    = spline(v0, A, v1-v_planet);
     
     % add noise
-    A_spline    = A_spline + normrnd(0, (1-A_spline).^0.5/SN);  
+%     A_spline    = A_spline + normrnd(0, (1-A_spline).^0.5/SN);  
     
     % obtain line centroid 
     idx_fit     = (v1 >= -9) & (v1 <= 9);
@@ -79,17 +81,19 @@ for n = 1:N_FILE
     RV_gauss(n) = f.b;
     
     % FT
-    A_spline    = A_spline .* window;
+%     A_spline    = A_spline .* window;
     plot(v1, A_spline)
     [FFT_frequency, FFT_power(:, n), Y(:, n)] = FUNCTION_FFT(A_spline, Fs);
     
 end     
 hold off
-title('Stacked cross correlation function')
-xlabel('Wavelength in RV [km/s]')
+% title('Stacked cross correlation function')
+xlabel('km/s')
 ylabel('Normalized intensity')
-saveas(gcf,'1-Line_Profile','epsc')
+saveas(gcf,'1-Line_Profile','png')
+% saveas(gcf,'1-Differential_line_Profile','png')
 close(h)
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,20 +102,21 @@ close(h)
 h = figure; 
 hold on
 for n = 1:N_FILE
-    plot(FFT_frequency, FFT_power(:, n) - FFT_power(:, 51), '-')
-    title('Differential FT power in all epochs (overplot)')
-    xlabel('FT frequency (1 / velocity in wavelength)')
-    ylabel('Differential power') 
-    
-%     plot(FFT_frequency, FFT_power(:, n))
-%     title('FT power in all epochs (overplot)')
+%     plot(FFT_frequency, FFT_power(:, n) - FFT_power(:, 51), '-')
+%     title('Differential FT power in all epochs (overplot)')
 %     xlabel('FT frequency (1 / velocity in wavelength)')
-%     ylabel('power')   
+%     ylabel('Differential power') 
+    
+    plot(FFT_frequency, FFT_power(:, n))
+%     title('Stacked power spectrum')
+    xlabel('\xi (km/s)^{-1}')
+    ylabel('Power')   
 %     
     xlim([-0.2 0.2])
 end 
 hold off
-saveas(gcf,'2-Differential_FT_power','epsc')
+saveas(gcf,'2-FT_power','png')
+% saveas(gcf,'2-Differential_FT_power','png')
 close(h)
 
 
@@ -119,13 +124,30 @@ close(h)
 % Phase angle %
 %%%%%%%%%%%%%%%
 h = figure;
-plot(FFT_frequency, unwrap(angle(Y(:, 51))), '-')
+plot(FFT_frequency, unwrap(angle(Y(:, 51))), '.')
 title('Phase angle (Rotation phase = 0.51)')
 xlabel('FT frequency (1 / velocity in wavelength)')
 ylabel('Phase angle [radian]')
-xlim([-0.35 0.35])
-saveas(gcf,'3-Phase_angle','epsc')
+% xlim([-0.35 0.35])
+saveas(gcf,'3-Phase_angle','png')
 close(h)
+
+
+% phase 2D plot 
+if 0
+    [aa,bb,cc] = FUNCTION_FFT(A1, Fs);
+    h = figure;
+    plot(real(cc), imag(cc), '.', real(Y(:,51)), imag(Y(:,51)), '.', 'MarkerSize', 10)
+    legend('Noise free', 'SN=10000')
+    grid on 
+    xlim([-0.05 0.05])
+    ylim([-0.005 0.005])
+    xlabel('Real')    
+    ylabel('Imaginary')
+    title('Phase angle in complex plane')
+    saveas(gcf,'7-Phase_angle_in_complex_plane_2','png')
+    close(h)
+end
 
 
 % Not used %
@@ -148,137 +170,185 @@ end
 %%%%%%%%%%%%%%%%%%%%%
 % Phase angle -> RV %
 %%%%%%%%%%%%%%%%%%%%%
-slope = zeros(1,N_FILE);
-RV_FT = zeros(1,N_FILE);
-h = figure; 
-hold on
-for i = 1:N_FILE
-    % n = 1:50;
-%     n = (1025-100):(1025+100);
-%     n = (1025-40):(1025+40);    % plot for a particular frequency
-%     n = (1025-10):(1025+10);          % THREE SPOT 
-    n = (1025-5):(1025+5);          % TWO SPOT 
-%     n = (size(FFT_frequency,2)/2-500):(size(FFT_frequency,2)/2+500);
-    xx = FFT_frequency(n);
-    yy = unwrap(angle(Y(n, i))) - unwrap(angle(Y(n, 1)));
-    plot(xx, yy, '-')
-    title('Phase angle (relative to 1st epoch)')
-    xlabel('FT frequency (1 / velocity in wavelength)')
-    ylabel('Phase angle [radian]')
-    
-    % Phase angle -> RV
-    p = polyfit(xx, unwrap(angle(Y(n, i)))',1);
-    slope(i) = p(1);
-    RV_FT1 = -slope(1) / (2*pi);
-    RV_FT(i) = -slope(i) / (2*pi) - RV_FT1;
+for range = 12 %2:2:24
+    disp(range)
+
+
+    slope = zeros(1,N_FILE);
+    RV_FT = zeros(1,N_FILE);
+%     if (SN == 10000)
+%         range = 10; % range=16 gives the smallest rms, but the scaling factor can be as large as 13; for range=10, scaling factor ~ 5
+%     end
+    h = figure; 
+    hold on
+    for i = 1:N_FILE
+        % n = 1:50;
+    %     n = (1025-100):(1025+100);
+    %     n = (1025-40):(1025+40);    % plot for a particular frequency
+        n = (1025-range):(1025+range);          % THREE SPOT 
+    %     n = (1025-5):(1025+5);          % TWO SPOT 
+    %     n = 1:size(FFT_frequency,2);
+    %     n = (size(FFT_frequency,2)/2-0.5):(size(FFT_frequency,2)/2+1.5);
+        xx = FFT_frequency(n);
+        yy = angle(Y(n, i)) - angle(Y(n, 1));
+        plot(xx, yy, '-')
+%         title('Phase angle (relative to 1st epoch)')
+        xlabel('\xi [km/s]^{-1}')
+        ylabel('\Delta \phi [radian]')
+
+        % Phase angle -> RV
+        weight = FFT_power(n,i)';
+        [fitresult, gof] = createFit(xx, yy', weight);
+        slope(i) = fitresult.p1;
+        RV_FT(i) = -slope(i) / (2*pi);
+    end
+    hold off
+    saveas(gcf,'4-Relative_phase_angle','png')
+    close(h)
+
+
+    %%%%%%%%%%%%%%%%%%%
+    % ONLY LINE SHIFT %
+    %%%%%%%%%%%%%%%%%%%
+    if 0
+        % Compare with simulated RV % 
+        h = figure;
+            subplot(2,1,1) 
+            xx = v_planet_array*1000;
+            xx = xx - xx(1);
+            yy1 = RV_FT*1000;
+            yy2 = (RV_gauss-RV_gauss(1))'*1000;
+            p_fit = polyfit(xx,yy1,1)
+            hold on 
+            plot(xx, yy1, 'rs','MarkerSize', 5, 'MarkerFaceColor', 'r')
+            plot(xx, yy2, 'b.', 'MarkerSize', 16)
+            hold off
+            ylim([-0.1 10.1])
+            title('RV Recovery')
+            xlabel('Input RV(m/s)')    
+            ylabel('Output RV (m/s)')
+            legend({'FT', 'Gaussian'}, 'Location', 'northwest')
+
+            subplot(2,1,2)
+            rms_gauss   = rms(yy2-xx - mean(yy2-xx));
+            rms_FT      = rms(yy1-xx - mean(yy1-xx));  
+            disp(rms_FT)
+            hold on 
+            plot(1:N_FILE, yy1-xx - mean(yy1-xx), 'rs', 'MarkerSize', 5, 'MarkerFaceColor', 'r')
+            plot(1:N_FILE, yy2-xx - mean(yy2-xx), 'b.', 'MarkerSize', 16)
+            hold off
+            xlabel('Run number')    
+            ylabel('Residual (m/s)')
+            legend1 = ['rms_{FT} = ', num2str(round(rms_FT,2)), ' m/s'];
+            legend2 = ['rms_{Gaussian} = ', num2str(round(rms_gauss,2)), ' m/s'];
+            legend(legend1, legend2)
+            saveas(gcf,'5-LINE_SHIFT_ONLY','png')
+        close(h)
+    end    
+
+    %%%%%%%%%%%%%%%
+    % ONLY JITTER %
+    %%%%%%%%%%%%%%%
+    if 0
+        % Compare with intrinsic line deformation RV % 
+        h = figure; 
+            yy = RV_FT'*1000;
+            xx = (RV_gauss - RV_gauss(1))*1000;
+            hold on
+            plot(xx, yy, 'k.', 'MarkerSize', 16)
+            p_fit = polyfit(xx,yy,1)
+            plot(xx, polyval(p_fit,xx), 'LineWidth', 2)
+            hold off
+%             title('RV Recovery')
+            xlabel('RV_{Gaussian} [m/s]')
+            ylabel('RV_{FT} [m/s]')                     
+            saveas(gcf,'5-JITTER_ONLY_1','png')
+        close(h)
+        % p_fit =     0.7974   -0.0025 FOR A THREE-SPOT CONFIGRATION (0.8104)
+        % p_fit =     0.7736   -0.2375 FOR A TWO-SPOT CONFIGRATION 
+
+        h = figure; 
+        plot(xx, xx - yy, 'o')
+        p_fit = polyfit(xx, xx - yy,1)
+        title('FT with jitter only (residual)')
+        xlabel('RV_{Gaussian} [m/s]')
+        ylabel('RV_{Gaussian} - RV_{FT} (m/s)')
+        saveas(gcf,'5-JITTER_ONLY_2','png')
+        close(h)
+    end
+
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%
+    % LINE SHIFT AND JITTER %
+    %%%%%%%%%%%%%%%%%%%%%%%%%
+
+    % Compare the total input RV and with the recovered RV
+    if 1
+        
+        % TIME SERIES
+        h = figure; 
+            ax1 = subplot(3,1,1);
+            t    = (1:N_FILE)';
+            yy1  = RV_FT' * 1000;
+            yy2  = (RV_gauss - RV_gauss(1)) * 1000;
+            hold on
+            plot(t, yy1, 'rs', 'MarkerSize', 5, 'MarkerFaceColor', 'r')
+            plot(t, yy2, 'b.', 'MarkerSize', 16)        
+            hold off
+            title('RV recovery')
+            ylabel('RV (m/s)')    
+            legend({'FT', 'Gaussian'}, 'Location', 'north')
+            dlmwrite('RV_IN.txt', yy2)
+            dlmwrite('RV_FT.txt', yy1)
+
+            %     rv_g1 = sgolayfilt(rv_d,2,21);
+            %     rv_g1 = sgolayfilt(rv_g1,2,11);
+            ax2 = subplot(3,1,2); 
+            rv_d        = yy2 - yy1;
+            t_smooth    = linspace(1,200, 1000)';
+            y_smooth    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_d, t_smooth, 2);
+            xx2 = (jitter- jitter(1))' * 1000;
+            p_fit = polyfit(xx2, rv_d, 1)            
+            hold on
+            jitter_model = (rv_d-p_fit(2))/p_fit(1);
+            c = @cmu.colors;
+            plot(t, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth',2)
+            plot(t, jitter_model, 'k.', 'MarkerSize', 10)
+            plot(t_smooth, (y_smooth-p_fit(2))/p_fit(1), 'k', 'LineWidth',2)
+%             pbaspect(ax2,[5 1 1])
+            hold off
+            ylabel('Jitter (m/s)')   
+            legend({'Input jitter', 'Scaled \Delta RV', }, 'Location', 'southwest')
+        
+            ax3 = subplot(3,1,3);
+            plot(t, xx2 - jitter_model, 'k.', 'MarkerSize', 10)
+            xlabel('t')
+            ylabel('Residual (m/s)')
+            saveas(gcf,'5-PLANET_AND_JITTER','png')
+            
+            rms(xx2 - mean(xx2))
+            rms(jitter_model - xx2)
+        close(h) 
+
+        
+
+
+        % REAL JITTER VS SCALED JITTER % 
+        if 0
+            h = figure; 
+            hold on            
+            plot(xx2, polyval(p_fit,xx2), '-')
+            (sum((rv_d - polyval(p_fit,xx2)).^2)/N_FILE)^0.5
+            (sum((rv_d - polyval(p_fit,xx2)).^2)/N_FILE)^0.5 / p_fit(1)
+            hold off
+            saveas(gcf,'7-Jitter_scaling','png')
+            close(h) 
+            % p_fit =    0.2019    0.0023 FOR A THREE-SPOT CONFIGRATION (0.1867)
+            % p_fit =    0.2259    0.2377 FOR A TWO-SPOT CONFIGRATION
+        end
+    end
+
 end
-hold off
-saveas(gcf,'4-Relative_phase_angle','epsc')
-close(h)
-
-
-%%%%%%%%%%%%%%%%%%%
-% ONLY LINE SHIFT %
-%%%%%%%%%%%%%%%%%%%
-if 0
-    % Compare with simulated RV % 
-    h = figure;
-    xx = v_planet_array(1:100)*1000;
-    xx = xx - xx(1);
-    yy = RV_FT*1000;
-    p_fit = polyfit(xx,yy,1)
-    plot(xx, yy, 'o')
-    title('Recovered RV vs input RV')
-    xlabel('Input RV(m/s)')    
-    ylabel('Recovered RV (m/s)')
-    saveas(gcf,'5-LINE_SHIFT_ONLY_1','epsc')
-    close(h)
-    
-    h = figure; 
-    plot(xx, yy-xx, 'o')
-    title('Recovered RV vs input RV (difference)')
-    xlabel('Input RV (m/s)')    
-    ylabel('Residual (m/s)')
-    saveas(gcf,'5-LINE_SHIFT_ONLY_2','epsc')
-    close(h)
-end    
-    
-%%%%%%%%%%%%%%%
-% ONLY JITTER %
-%%%%%%%%%%%%%%%
-if 0
-    % Compare with intrinsic line deformation RV % 
-    h = figure; 
-    xx = (jitter - jitter(1))*1000;
-    yy = RV_FT*1000;
-    plot(xx, yy, 'o')
-    title('FT with jitter only')
-    xlabel('Jitter(m/s)')
-    ylabel('RV_{FT} (m/s)')    
-    p_fit = polyfit(xx,yy',1)
-    saveas(gcf,'5-JITTER_ONLY_1','epsc')
-    close(h)
-    % p_fit =     0.7974   -0.0025 FOR A THREE-SPOT CONFIGRATION (0.8104)
-    % p_fit =     0.7736   -0.2375 FOR A TWO-SPOT CONFIGRATION 
-
-    h = figure; 
-    plot(xx, yy-xx', 'o')
-    title('FT with jitter only (residual)')
-    xlabel('jitter(m/s)')
-    ylabel('RV_{FT} - jitter (m/s)')
-    saveas(gcf,'5-JITTER_ONLY_2','epsc')
-    close(h)    
-end
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%
-% LINE SHIFT AND JITTER %
-%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Compare the total input RV and with the recovered RV
-h = figure; 
-xx = (RV_gauss - RV_gauss(1)) * 1000;
-yy = RV_FT*1000;
-plot(xx, yy, 'o')
-title('Planet and Jitter')
-xlabel('Input RV including jitter (m/s)')
-ylabel('RV_{FT} (m/s)')    
-p_fit = polyfit(xx,yy',1)
-dlmwrite('RV_IN.txt', xx)
-dlmwrite('RV_FT.txt', yy')
-saveas(gcf,'5-PLANET_AND_JITTER','epsc')
-close(h)    
-
-
-% TIME SERIES
-h = figure; 
-hold on
-plot(t, xx'-yy, 'b')
-xlabel('time')
-ylabel('Scaled jitter (m/s)')   
-plot(t, (jitter- jitter(1)) * 1000, 'r')
-legend('(1-m)*jitter','jitter')
-hold off
-saveas(gcf,'6-Jitter_model','epsc')
-close(h) 
-
-
-% REAL JITTER VS SCALED JITTER % 
-h = figure; 
-xx2 = (jitter- jitter(1)) * 1000;
-yy2 = xx'-yy;
-plot(xx2, yy2, 'o')
-xlabel('Real jitter (m/s)')
-ylabel('Scaled jitter (m/s)')   
-p_fit = polyfit(xx2,yy2, 1)
-saveas(gcf,'7-Jitter_scaling','epsc')
-close(h) 
-% p_fit =    0.2019    0.0023 FOR A THREE-SPOT CONFIGRATION (0.1867)
-% p_fit =    0.2259    0.2377 FOR A TWO-SPOT CONFIGRATION
-
-
-
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -386,7 +456,7 @@ if 0
         % f_power = fit( FFT_frequency(idx)'-0.5, iFFT_power(idx, n), 'a*exp(-((x-b)/c)^2)+d', 'StartPoint', [1, 0.5, 1, 0] );
         idx = (FFT_frequency<1) & (FFT_frequency>0);
         f_power = fit( FFT_frequency(idx)', iFFT_power(idx, n), 'a*exp(-((x-b)/c)^2)+d', 'StartPoint', [0.5, 0.5, 0.18, 0] );
-        i_planet(n) = f_power.b;
+        i_planet(n) = f_power.b;goo
     end
 
     % test %

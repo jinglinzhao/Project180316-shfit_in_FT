@@ -6,6 +6,7 @@ function [fshift,power,Y] = FUNCTION_FFT(X, Fs)
 % in order to improve the performance of fft.
 
 n       = 2^nextpow2(length(X))*8;
+% n       = length(X);
 fshift  = Fs*((0:n-1)/n-0.5);
 % fshift  = transpose(fshift);
 
