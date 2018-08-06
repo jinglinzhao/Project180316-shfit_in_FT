@@ -7,7 +7,7 @@
 %%%%%%%%%%%%%%
 SN          = 10000;
 % N_FILE      = 100;
-N_FILE      = 200;
+N_FILE      = 100;
 t           = 1:N_FILE;
 grid_size   = 0.1;
 Fs          = 1/grid_size;
@@ -17,8 +17,8 @@ dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
-% jitter      = jitter';
-jitter      = [jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
+jitter      = jitter';
+% jitter      = [jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
 
@@ -52,8 +52,8 @@ size1       = length(bb);
 FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
-% v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-v_planet_array  = 2 * sin(t/100.*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+v_planet_array  = linspace(0,10,N_FILE) / 1000.;
+% v_planet_array  = 2 * sin(t/100.*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -64,9 +64,9 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n)*0;
-    filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
-%     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
+    v_planet    = v_planet_array(n);
+%     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
+    filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
 %     plot(v0(idx),A(idx)-A1, '.')
     A_spline    = spline(v0, A, v1-v_planet);
@@ -139,7 +139,7 @@ close(h)
 
 
 % phase 2D plot 
-if 1
+if 0
     [aa,bb,cc] = FUNCTION_FFT(A1, Fs);
     h = figure;
     plot(real(cc), imag(cc), '.', real(Y(:,1)), imag(Y(:,1)), '.', 'MarkerSize', 10)
@@ -273,38 +273,42 @@ figure; plot(1:100, wegihted_velocity, 1:100, RV_FT*1000)
 if 0
     % Compare with simulated RV % 
     h = figure;
-        subplot(2,1,1) 
+        ax1 =subplot(20,1,1:17) 
         xx = v_planet_array*1000;
         xx = xx - xx(1);
         yy1 = RV_FT*1000;
         yy2 = (RV_gauss-RV_gauss(1))'*1000;
         p_fit = polyfit(xx,yy1,1)
         hold on 
-        plot(xx, yy1, 'rs','MarkerSize', 5, 'MarkerFaceColor', 'r')
-        plot(xx, yy2, 'b.', 'MarkerSize', 16)
-        plot(xx, xx, '-')
+        scatter(xx, yy1, 15, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.7)
+        scatter(xx, yy2, 10, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.3)
+        plot(xx, xx, 'k-')
         hold off
         ylim([-0.1 10.1])
         title('RV Recovery')
 %         xlabel('Input RV [m/s]')    
         ylabel('Output RV [m/s]')
-        set(gca,'fontsize',12)
-        legend({'FT', 'Gaussian'}, 'Location', 'northwest')
+%         daspect(ax1,[1 1 1])
+%         set(gca,'xtick',[])
+        set(gca,'xticklabel',[])
+        set(gca,'fontsize',15)
+        legend({'FT', 'Gaussian', 'Input RV'}, 'Location', 'northwest')
 
-        subplot(2,1,2)
+        positions = ax1.Position;
+        ax2 = subplot(20,1,18:20)
         rms_gauss   = rms(yy2-xx - mean(yy2-xx));
         rms_FT      = rms(yy1-xx - mean(yy1-xx));  
         disp(rms_FT)
         hold on 
-        plot(xx, yy1-xx - mean(yy1-xx), 'rs', 'MarkerSize', 5, 'MarkerFaceColor', 'r')
-        plot(xx, yy2-xx - mean(yy2-xx), 'b.', 'MarkerSize', 16)
+        scatter(xx, yy1-xx - mean(yy1-xx), 15, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.7)
+        scatter(xx, yy2-xx - mean(yy2-xx), 10, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.3)
         hold off
         xlabel('Input RV [m/s]')    
         ylabel('Residual [m/s]')
 %         legend1 = ['rms_{FT} = ', num2str(round(rms_FT,2)), ' m/s'];
 %         legend2 = ['rms_{Gaussian} = ', num2str(round(rms_gauss,2)), ' m/s'];
 %         legend(legend1, legend2)
-        set(gca,'fontsize',12)
+        set(gca,'fontsize',15)
         saveas(gcf,'5-LINE_SHIFT_ONLY','png')
     close(h)
 end    
@@ -403,43 +407,61 @@ if 1
 
     % TIME SERIES
     h = figure; 
-        ax1 = subplot(3,1,1);
+    ax1 = subplot(5,1,1:2);
         t    = (1:N_FILE)';
-        yy1  = RV_FT' * 1000;
+        yyL  = RV_FTL' * 1000;
+        yyH  = RV_FTH' * 1000;
         yy2  = (RV_gauss - RV_gauss(1)) * 1000;
         hold on
-        plot(t, yy1, 'rs', 'MarkerSize', 5, 'MarkerFaceColor', 'r')
-        plot(t, yy2, 'b.', 'MarkerSize', 16)        
+        scatter(t, yyL, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+        scatter(t, yyH, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+        scatter(t, yy2, 15, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5);
         hold off
         title('RV recovery')
         ylabel('RV (m/s)')    
-        legend({'FT', 'Gaussian'}, 'Location', 'north')
+        legend({'RV_{FT,L}', 'RV_{FT,H}', 'Gaussian'}, 'Location', 'north')
+        set(gca,'fontsize', 12)
         dlmwrite('RV_IN.txt', yy2)
         dlmwrite('RV_FT.txt', yy1)
 
         %     rv_g1 = sgolayfilt(rv_d,2,21);
         %     rv_g1 = sgolayfilt(rv_g1,2,11);
-        ax2 = subplot(3,1,2); 
-        rv_d        = yy2 - yy1;
+    ax2 = subplot(5,1,3:4); 
+        rv_L        = yy2 - yyL;
         t_smooth    = linspace(1,200, 1000)';
-        y_smooth    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_d, t_smooth, 2);
+        y_smooth1    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t_smooth, 2);
         xx2 = (jitter- jitter(1))' * 1000;
-        p_fit = polyfit(xx2, rv_d, 1)            
+        p_fit1 = polyfit(xx2, rv_L, 1)
         hold on
-        jitter_model = (rv_d-p_fit(2))/p_fit(1);
+        jitter_model1 = (rv_L-p_fit1(2))/p_fit1(1);
         c = @cmu.colors;
-        plot(t, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth',2)
-        plot(t, jitter_model, 'k.', 'MarkerSize', 10)
-        plot(t_smooth, (y_smooth-p_fit(2))/p_fit(1), 'k', 'LineWidth',2)
+        plot(t, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth', 3)
+        scatter(t, jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+
+        rv_H        = yyH - yyL;
+        y_smooth2    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t_smooth, 2);
+        p_fit2 = polyfit(xx2, rv_H, 1)
+        jitter_model2 = (rv_H-p_fit2(2))/p_fit2(1);
+        scatter(t, jitter_model2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        
+        plot1 = plot(t_smooth, (y_smooth1-p_fit1(2))/p_fit1(1), 'k', 'LineWidth', 2);
+        plot1.Color(4) = 0.2;        
+        plot2 = plot(t_smooth, (y_smooth2-p_fit2(2))/p_fit2(1), 'k', 'LineWidth', 2);
+        plot2.Color(4) = 0.2;
 %             pbaspect(ax2,[5 1 1])
         hold off
         ylabel('Jitter (m/s)')   
-        legend({'Input jitter', 'Scaled \Delta RV', }, 'Location', 'southwest')
+        legend({'Jitter', 'Eq. 2.15', 'Eq. 2.16'}, 'Location', 'southwest')
+        set(gca,'fontsize', 12)
 
-        ax3 = subplot(3,1,3);
-        plot(t, xx2 - jitter_model, 'k.', 'MarkerSize', 10)
+        ax3 = subplot(5,1,5);
+        hold on 
+        scatter(t, xx2 - jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t, xx2 - jitter_model2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        hold off
         xlabel('t')
         ylabel('Residual (m/s)')
+        set(gca,'fontsize', 12)
         saveas(gcf,'5-PLANET_AND_JITTER','png')
 
         rms(xx2 - mean(xx2))
