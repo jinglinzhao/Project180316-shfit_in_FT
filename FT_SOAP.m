@@ -7,7 +7,7 @@
 %%%%%%%%%%%%%%
 SN          = 10000;
 % N_FILE      = 100;
-N_FILE      = 100;
+N_FILE      = 200;
 t           = 1:N_FILE;
 grid_size   = 0.1;
 Fs          = 1/grid_size;
@@ -17,8 +17,8 @@ dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
-jitter      = jitter';
-% jitter      = [jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
+% jitter      = jitter';
+jitter      = [jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
 
@@ -52,8 +52,8 @@ size1       = length(bb);
 FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
-v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-% v_planet_array  = 2 * sin(t/100.*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+% v_planet_array  = linspace(0,10,N_FILE) / 1000.;
+v_planet_array  = 2 * sin(t/100.*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -65,8 +65,8 @@ hold on
 for n = 1:N_FILE
 
     v_planet    = v_planet_array(n);
-%     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
-    filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
+    filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
+%     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
 %     plot(v0(idx),A(idx)-A1, '.')
     A_spline    = spline(v0, A, v1-v_planet);
@@ -265,7 +265,7 @@ saveas(gcf,'4-Relative_phase_angle_H','png')
 close(h)
 
 % test
-figure; plot(1:100, wegihted_velocity, 1:100, RV_FT*1000)
+% figure; plot(1:100, wegihted_velocity, 1:100, RV_FT*1000)
 
 %%%%%%%%%%%%%%%%%%%
 % ONLY LINE SHIFT %
@@ -414,15 +414,17 @@ if 1
         yy2  = (RV_gauss - RV_gauss(1)) * 1000;
         hold on
         scatter(t, yyL, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
-        scatter(t, yyH, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+%         scatter(t, yyH, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
         scatter(t, yy2, 15, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5);
         hold off
         title('RV recovery')
-        ylabel('RV (m/s)')    
-        legend({'RV_{FT,L}', 'RV_{FT,H}', 'Gaussian'}, 'Location', 'north')
+        ylabel('RV [m/s]')    
+%         legend({'RV_{FT,L}', 'RV_{FT,H}', 'Gaussian'}, 'Location', 'north')
+        legend({'RV_{FT,L}', 'Gaussian'}, 'Location', 'southwest')
         set(gca,'fontsize', 12)
-        dlmwrite('RV_IN.txt', yy2)
-        dlmwrite('RV_FT.txt', yy1)
+        set(gca,'xticklabel',[])
+%         dlmwrite('RV_IN.txt', yy2)
+%         dlmwrite('RV_FT.txt', yy1)
 
         %     rv_g1 = sgolayfilt(rv_d,2,21);
         %     rv_g1 = sgolayfilt(rv_g1,2,11);
@@ -430,6 +432,7 @@ if 1
         rv_L        = yy2 - yyL;
         t_smooth    = linspace(1,200, 1000)';
         y_smooth1    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t_smooth, 2);
+        y_smooth11   = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t, 2);
         xx2 = (jitter- jitter(1))' * 1000;
         p_fit1 = polyfit(xx2, rv_L, 1)
         hold on
@@ -438,36 +441,54 @@ if 1
         plot(t, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth', 3)
         scatter(t, jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
 
-        rv_H        = yyH - yyL;
-        y_smooth2    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t_smooth, 2);
-        p_fit2 = polyfit(xx2, rv_H, 1)
-        jitter_model2 = (rv_H-p_fit2(2))/p_fit2(1);
-        scatter(t, jitter_model2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+%         rv_H        = yyH - yyL;
+%         y_smooth2    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t_smooth, 2);
+%         p_fit2 = polyfit(xx2, rv_H, 1)
+%         jitter_model2 = (rv_H-p_fit2(2))/p_fit2(1);
+%         scatter(t, jitter_model2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         
         plot1 = plot(t_smooth, (y_smooth1-p_fit1(2))/p_fit1(1), 'k', 'LineWidth', 2);
-        plot1.Color(4) = 0.2;        
-        plot2 = plot(t_smooth, (y_smooth2-p_fit2(2))/p_fit2(1), 'k', 'LineWidth', 2);
-        plot2.Color(4) = 0.2;
+        plot1.Color(4) = 0.4;        
+%         plot2 = plot(t_smooth, (y_smooth2-p_fit2(2))/p_fit2(1), 'k', 'LineWidth', 2);
+%         plot2.Color(4) = 0.2;
 %             pbaspect(ax2,[5 1 1])
         hold off
-        ylabel('Jitter (m/s)')   
-        legend({'Jitter', 'Eq. 2.15', 'Eq. 2.16'}, 'Location', 'southwest')
+        ylabel('Jitter [m/s]')   
+%         legend({'Jitter', 'Eq. 2.15', 'Eq. 2.16'}, 'Location', 'southwest')
+        legend({'Jitter', 'Model'}, 'Location', 'northwest')
         set(gca,'fontsize', 12)
+        set(gca,'xticklabel',[])
 
         ax3 = subplot(5,1,5);
         hold on 
-        scatter(t, xx2 - jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(t, xx2 - jitter_model2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t, jitter_model1 - xx2, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+%         scatter(t, xx2 - jitter_model2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        plot1 = plot(t, (y_smooth11-p_fit1(2))/p_fit1(1) - xx2, 'k', 'LineWidth', 2);
+        plot1.Color(4) = 0.4; 
         hold off
         xlabel('t')
-        ylabel('Residual (m/s)')
+        ylabel('Residual [m/s]')
         set(gca,'fontsize', 12)
-        saveas(gcf,'5-PLANET_AND_JITTER','png')
+        saveas(gcf,'5-PLANET_AND_JITTER2','png')
 
         rms(xx2 - mean(xx2))
-        rms(jitter_model - xx2)
+        rms(jitter_model1 - xx2)
+        rms((y_smooth11-p_fit1(2))/p_fit1(1) - xx2)
     close(h) 
 
+    
+    % Obtain kl, kh %
+    yyL  = RV_FTL' * 1000;
+    yyH  = RV_FTH' * 1000;
+    yyG  = (RV_gauss - RV_gauss(1)) * 1000;
+    plot(yyG-yyL, yyH-yyG, '.')
+    p_fit = polyfit(yyG-yyL, yyH-yyG, 1)
+    
+    plot(yyG-yyL, yyH-yyL, '.')
+    p_fit = polyfit(yyG-yyL, yyH-yyL, 1)    
+    
+    
+    
     % REAL JITTER VS SCALED JITTER % 
     if 0
         h = figure; 
