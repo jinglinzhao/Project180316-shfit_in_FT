@@ -94,12 +94,23 @@ set(gca,'fontsize',20)
 xlabel('km/s')
 ylabel('Normalized intensity')
 % saveas(gcf,'LPD1-Line_Profile','png')
-% saveas(gcf,'1-Line_Profile','png')
-saveas(gcf,'1-Differential_line_Profile','png')
+saveas(gcf,'1-Line_Profile','png')
+% saveas(gcf,'1-Differential_line_Profile','png')
 % saveas(gcf,'LPD1-Differential_line_Profile','png')
 close(h)
 
-
+% Determine the midpoint the equally divides the power spectrum %
+f_max       = 0.15;
+n           = abs(FFT_frequency) <= 0.15;
+power_sum   = sum(FFT_power(n,1));
+cum = 0;
+for i = 0:fix(sum(n)/2)
+    cum = cum + FFT_power(size(FFT_power,1)/2+i,1);
+    if cum > power_sum/2
+        break
+    end
+end
+f_divide = FFT_frequency(size(FFT_power,1)/2+i);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 % FT power in all epochs %
@@ -178,7 +189,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%
 % Phase angle -> RV %
 %%%%%%%%%%%%%%%%%%%%%
-n       = abs(FFT_frequency) <= 0.15;
+n       = abs(FFT_frequency) <= f_max;
 slope   = zeros(1,N_FILE);
 RV_FT   = zeros(1,N_FILE);
 RV_FT_err  = zeros(1,N_FILE);
@@ -212,7 +223,7 @@ saveas(gcf,'4-Relative_phase_angle','png')
 close(h)
 
 % Low-pass %
-nl      = (FFT_frequency >= 0) & (FFT_frequency < 0.05);
+nl      = (FFT_frequency >= 0) & (FFT_frequency < f_divide);
 RV_FTL  = zeros(1,N_FILE);
 RV_FTL_err  = zeros(1,N_FILE);
 h       = figure; 
@@ -226,7 +237,6 @@ for i = 1:N_FILE
     % Phase angle -> RV
     weight          = FFT_power(nl,i)';
     [fitresult, gof]= createFit(xx, yy', weight);
-    ci              = confint(fitresult,0.95);
     slope(i)        = fitresult.p1;
     RV_FTL(i)       = -slope(i) / (2*pi);
     ci              = confint(fitresult,0.95);
@@ -241,7 +251,7 @@ saveas(gcf,'4-Relative_phase_angle_L','png')
 close(h)
 
 % high-pass % 
-n       = (FFT_frequency >= 0.05) & (FFT_frequency <= 0.15);
+n       = (FFT_frequency >= f_divide) & (FFT_frequency <= f_max);
 RV_FTH  = zeros(1,N_FILE);
 RV_FTH_err  = zeros(1,N_FILE);
 h       = figure; 
