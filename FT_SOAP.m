@@ -6,8 +6,8 @@
 % Parameters %
 %%%%%%%%%%%%%%
 SN          = 10000;
-% N_FILE      = 100;
-N_FILE      = 200;
+N_FILE      = 100;
+% N_FILE      = 200;
 t           = 1:N_FILE;
 grid_size   = 0.1;
 Fs          = 1/grid_size;
@@ -17,8 +17,8 @@ dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
-% jitter      = jitter';
-jitter      = [jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
+jitter      = jitter';
+% jitter      = [jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
 
@@ -52,8 +52,8 @@ size1       = length(bb);
 FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
-% v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-v_planet_array  = 2 * sin(t/100.*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+v_planet_array  = linspace(0,10,N_FILE) / 1000.;
+% v_planet_array  = 2 * sin(t/100.*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -65,12 +65,14 @@ hold on
 for n = 1:N_FILE
 
     v_planet    = v_planet_array(n);
-    filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
-%     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
+%     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
+    filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
-%     plot(v0(idx),A(idx)-A1, '.')
     A_spline    = spline(v0, A, v1-v_planet);
-    
+    % Plot the one without noise
+    if mod(n,10) == 1
+        plot(v1, A_spline - A1, 'k')
+    end    
     % add noise
     A_spline    = A_spline + normrnd(0, (1-A_spline).^0.5/SN);  
     
@@ -81,11 +83,8 @@ for n = 1:N_FILE
     f           = fit(v_fit, A_spline_fit, 'a*exp(-((x-b)/c)^2)+d', 'StartPoint', [0.5, 0, 4, 0] );
     RV_gauss(n) = f.b;
     
-    % FT
 %     A_spline    = A_spline .* window;
-    if mod(n,10) == 1
-        plot(v1, A_spline, 'k')
-    end
+
     [FFT_frequency, FFT_power(:, n), Y(:, n)] = FUNCTION_FFT(A_spline, Fs);
     
 end     
@@ -94,8 +93,9 @@ hold off
 set(gca,'fontsize',20)
 xlabel('km/s')
 ylabel('Normalized intensity')
-saveas(gcf,'LPD1-Line_Profile','png')
-% saveas(gcf,'1-Differential_line_Profile','png')
+% saveas(gcf,'LPD1-Line_Profile','png')
+% saveas(gcf,'1-Line_Profile','png')
+saveas(gcf,'1-Differential_line_Profile','png')
 % saveas(gcf,'LPD1-Differential_line_Profile','png')
 close(h)
 
@@ -178,34 +178,31 @@ end
 %%%%%%%%%%%%%%%%%%%%%
 % Phase angle -> RV %
 %%%%%%%%%%%%%%%%%%%%%
-n   = (FFT_frequency > -0.15) & (FFT_frequency < 0.15);
-slope = zeros(1,N_FILE);
-RV_FT  = zeros(1,N_FILE);
-wegihted_velocity = zeros(1,N_FILE);
+n       = abs(FFT_frequency) <= 0.15;
+slope   = zeros(1,N_FILE);
+RV_FT   = zeros(1,N_FILE);
+RV_FT_err  = zeros(1,N_FILE);
+% wegihted_velocity = zeros(1,N_FILE);
 h = figure; 
 hold on
 for i = 1:N_FILE
-%     n = (1025-range):(1025+range);          % THREE SPOT (range = 12)
-%     n = (1025-5):(1025+5);          % TWO SPOT 
-%     n = 1:size(FFT_frequency,2);
-%     n = (size(FFT_frequency,2)/2-0.5):(size(FFT_frequency,2)/2+1.5);
     xx  = FFT_frequency(n);
     yy  = angle(Y(n, i)) - angle(Y(n, 1));
     if mod(i,10) == 1
         plot(xx, yy, 'k-')
     end
     % Phase angle -> RV
-    weight = FFT_power(n,i)';
-    [fitresult, gof] = createFit(xx, yy', weight);
-    slope(i) = fitresult.p1;
-    RV_FT(i) = -slope(i) / (2*pi);
-    
+    weight          = FFT_power(n,i)';
+    [fitresult, gof]= createFit(xx, yy', weight);
+    slope(i)        = fitresult.p1;
+    RV_FT(i)        = -slope(i) / (2*pi);
+    ci              = confint(fitresult,0.95);
+    RV_FT_err(i)    = abs(diff(ci(:,1))*1000 / (4*pi));
     if 0  % method 2
         idx_no0 = (xx~=0);
         velocity = - (yy(idx_no0)' ./ xx(idx_no0)) / (2*pi);
         wegihted_velocity(i) = sum(velocity .* weight(idx_no0)) ./ sum(weight(idx_no0)) * 1000;
     end
-    
 end
 hold off
 set(gca,'fontsize',20)
@@ -217,6 +214,7 @@ close(h)
 % Low-pass %
 nl      = (FFT_frequency >= 0) & (FFT_frequency < 0.05);
 RV_FTL  = zeros(1,N_FILE);
+RV_FTL_err  = zeros(1,N_FILE);
 h       = figure; 
 hold on
 for i = 1:N_FILE
@@ -226,10 +224,13 @@ for i = 1:N_FILE
         plot(xx, yy, 'k-')
     end
     % Phase angle -> RV
-    weight = FFT_power(nl,i)';
-    [fitresult, gof] = createFit(xx, yy', weight);
-    slope(i) = fitresult.p1;
-    RV_FTL(i) = -slope(i) / (2*pi);
+    weight          = FFT_power(nl,i)';
+    [fitresult, gof]= createFit(xx, yy', weight);
+    ci              = confint(fitresult,0.95);
+    slope(i)        = fitresult.p1;
+    RV_FTL(i)       = -slope(i) / (2*pi);
+    ci              = confint(fitresult,0.95);
+    RV_FTL_err(i)   = abs(diff(ci(:,1))*1000 / (4*pi));    
 end
 hold off
 set(gca,'fontsize',20)
@@ -242,6 +243,7 @@ close(h)
 % high-pass % 
 n       = (FFT_frequency >= 0.05) & (FFT_frequency <= 0.15);
 RV_FTH  = zeros(1,N_FILE);
+RV_FTH_err  = zeros(1,N_FILE);
 h       = figure; 
 hold on
 for i = 1:N_FILE
@@ -251,10 +253,12 @@ for i = 1:N_FILE
         plot(xx, yy, 'k-')
     end
     % Phase angle -> RV
-    weight = FFT_power(n,i)';
-    [fitresult, gof] = createFit(xx, yy', weight);
-    slope(i) = fitresult.p1;
-    RV_FTH(i) = -slope(i) / (2*pi);    
+    weight          = FFT_power(n,i)';
+    [fitresult, gof]= createFit(xx, yy', weight);
+    slope(i)        = fitresult.p1;
+    RV_FTH(i)       = -slope(i) / (2*pi);    
+    ci              = confint(fitresult,0.95);
+    RV_FTH_err(i)   = abs(diff(ci(:,1))*1000 / (4*pi));        
 end
 hold off
 set(gca,'fontsize',20)
@@ -273,44 +277,86 @@ close(h)
 if 0
     % Compare with simulated RV % 
     h = figure;
-        ax1 =subplot(20,1,1:17) 
-        xx = v_planet_array*1000;
-        xx = xx - xx(1);
-        yy1 = RV_FT*1000;
+        ax1 =subplot(20,1,1:17);
+        xx = (v_planet_array-v_planet_array(1))*1000;
+        yy1 = (RV_FT-RV_FT(1)) *1000;
         yy2 = (RV_gauss-RV_gauss(1))'*1000;
-        p_fit = polyfit(xx,yy1,1)
+        [fitresult, gof]= createFit(xx, yy1, 1./(0.08+RV_FT_err).^2);
+        fitresult
         hold on 
-        scatter(xx, yy1, 15, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.7)
-        scatter(xx, yy2, 10, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.3)
-        plot(xx, xx, 'k-')
+        scatter(xx, yy1, 15, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy2, 10, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5)
+        p0 = plot(xx, xx, 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
+%         errorbar(xx, yy1, RV_FT_err, 'r.', 'MarkerSize', 0.1)
         hold off
         ylim([-0.1 10.1])
         title('RV Recovery')
-%         xlabel('Input RV [m/s]')    
         ylabel('Output RV [m/s]')
 %         daspect(ax1,[1 1 1])
 %         set(gca,'xtick',[])
         set(gca,'xticklabel',[])
         set(gca,'fontsize',15)
-        legend({'FT', 'Gaussian', 'Input RV'}, 'Location', 'northwest')
+        legend({'RV_{FT}', 'RV_{Gaussian}', 'Output RV = Input RV'}, 'Location', 'northwest')
 
         positions = ax1.Position;
-        ax2 = subplot(20,1,18:20)
+        ax2 = subplot(20,1,18:20);
         rms_gauss   = rms(yy2-xx - mean(yy2-xx));
         rms_FT      = rms(yy1-xx - mean(yy1-xx));  
         disp(rms_FT)
         hold on 
-        scatter(xx, yy1-xx - mean(yy1-xx), 15, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.7)
-        scatter(xx, yy2-xx - mean(yy2-xx), 10, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.3)
+        scatter(xx, yy1-xx, 15, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5)
+%         errorbar(xx, yy1-xx, RV_FT_err, 'r.', 'MarkerSize', 0.1)
+        scatter(xx, yy2-xx, 10, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5)
+        p0 = plot([min(xx), max(xx)], [0,0], 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
         hold off
         xlabel('Input RV [m/s]')    
         ylabel('Residual [m/s]')
-%         legend1 = ['rms_{FT} = ', num2str(round(rms_FT,2)), ' m/s'];
-%         legend2 = ['rms_{Gaussian} = ', num2str(round(rms_gauss,2)), ' m/s'];
-%         legend(legend1, legend2)
         set(gca,'fontsize',15)
         saveas(gcf,'5-LINE_SHIFT_ONLY','png')
     close(h)
+
+    % high-pass and low-pass %
+    h = figure;
+        ax1 =subplot(20,1,1:17);
+        xx = (v_planet_array-v_planet_array(1))*1000;
+        yy1 = RV_FTH *1000;
+        yy2 = RV_FTL *1000;
+        [fitresult, gof]= createFit(xx, yy1, 1./(0.08+RV_FTH_err).^2);
+        fitresult
+        [fitresult, gof]= createFit(xx, yy2, 1./(0.08+RV_FTL_err).^2);
+        fitresult        
+        hold on 
+        scatter(xx, yy1, 15, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy2, 10, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        p0 = plot(xx, xx, 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
+        hold off
+        ylim([-0.1 10.1])
+        title('RV Recovery')
+        ylabel('Output RV [m/s]')
+%         daspect(ax1,[1 1 1])
+%         set(gca,'xtick',[])
+        set(gca,'xticklabel',[])
+        set(gca,'fontsize',15)
+        legend({'RV_{FT,H}', 'RV_{FT,L}', 'Output RV = Input RV'}, 'Location', 'northwest')
+
+        positions = ax1.Position;
+        ax2     = subplot(20,1,18:20);
+        rms1    = rms(yy1-xx - mean(yy1-xx));  
+        rms2    = rms(yy2-xx - mean(yy2-xx));
+        hold on 
+        scatter(xx, yy1-xx, 15, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+%         errorbar(xx, yy1-xx, RV_FTH_err, 'k.', 'MarkerSize', 0.1)
+        scatter(xx, yy2-xx, 10, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+%         errorbar(xx, yy2-xx, RV_FTL_err, 'k.', 'MarkerSize', 0.1)
+        p0 = plot([min(xx), max(xx)], [0,0], 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
+        hold off
+        xlabel('Input RV [m/s]')    
+        ylabel('Residual [m/s]')
+        set(gca,'fontsize',15)
+        saveas(gcf,'5-LINE_SHIFT_ONLY-HL','png')
+    close(h)    
+    
+    
 end    
 
 %%%%%%%%%%%%%%%
