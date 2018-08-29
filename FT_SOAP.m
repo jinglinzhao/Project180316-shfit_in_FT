@@ -64,9 +64,9 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n);
-%     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
-    filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
+    v_planet    = v_planet_array(n) * 0;
+    filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
+%     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
     A_spline    = spline(v0, A, v1-v_planet);
     % Plot the one without noise
@@ -93,10 +93,10 @@ hold off
 set(gca,'fontsize',20)
 xlabel('km/s')
 ylabel('Normalized intensity')
-% saveas(gcf,'LPD1-Line_Profile','png')
-saveas(gcf,'1-Line_Profile','png')
+% saveas(gcf,'1-Line_Profile','png')
 % saveas(gcf,'1-Differential_line_Profile','png')
-% saveas(gcf,'LPD1-Differential_line_Profile','png')
+% saveas(gcf,'LPD1-Line_Profile','png')
+saveas(gcf,'LPD1-Differential_line_Profile','png')
 close(h)
 
 % Determine the midpoint the equally divides the power spectrum %
@@ -219,7 +219,8 @@ hold off
 set(gca,'fontsize',20)
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
-saveas(gcf,'4-Relative_phase_angle','png')
+% saveas(gcf,'4-Relative_phase_angle','png')
+saveas(gcf,'LPD4-Relative_phase_angle.png','png')
 close(h)
 
 % Low-pass %
@@ -247,7 +248,8 @@ set(gca,'fontsize',20)
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
 title('Low-pass')
-saveas(gcf,'4-Relative_phase_angle_L','png')
+% saveas(gcf,'4-Relative_phase_angle_L','png')
+saveas(gcf,'LPD4-Relative_phase_angle_L','png')
 close(h)
 
 % high-pass % 
@@ -275,7 +277,8 @@ set(gca,'fontsize',20)
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
 title('High-pass')
-saveas(gcf,'4-Relative_phase_angle_H','png')
+% saveas(gcf,'4-Relative_phase_angle_H','png')
+saveas(gcf,'LPD4-Relative_phase_angle_H','png')
 close(h)
 
 % test
@@ -294,8 +297,8 @@ if 0
         [fitresult, gof]= createFit(xx, yy1, 1./(0.08+RV_FT_err).^2);
         fitresult
         hold on 
-        scatter(xx, yy1, 15, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5)
-        scatter(xx, yy2, 10, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy1, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy2, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5)
         p0 = plot(xx, xx, 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
 %         errorbar(xx, yy1, RV_FT_err, 'r.', 'MarkerSize', 0.1)
         hold off
@@ -314,9 +317,9 @@ if 0
         rms_FT      = rms(yy1-xx - mean(yy1-xx));  
         disp(rms_FT)
         hold on 
-        scatter(xx, yy1-xx, 15, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy1-xx, 'rs', 'MarkerFaceColor', 'r', 'MarkerFaceAlpha', 0.5)
 %         errorbar(xx, yy1-xx, RV_FT_err, 'r.', 'MarkerSize', 0.1)
-        scatter(xx, yy2-xx, 10, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy2-xx, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5)
         p0 = plot([min(xx), max(xx)], [0,0], 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
         hold off
         xlabel('Input RV [m/s]')    
@@ -336,8 +339,8 @@ if 0
         [fitresult, gof]= createFit(xx, yy2, 1./(0.08+RV_FTL_err).^2);
         fitresult        
         hold on 
-        scatter(xx, yy1, 15, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(xx, yy2, 10, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy1, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy2, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         p0 = plot(xx, xx, 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
         hold off
         ylim([-0.1 10.1])
@@ -354,9 +357,9 @@ if 0
         rms1    = rms(yy1-xx - mean(yy1-xx));  
         rms2    = rms(yy2-xx - mean(yy2-xx));
         hold on 
-        scatter(xx, yy1-xx, 15, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy1-xx, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
 %         errorbar(xx, yy1-xx, RV_FTH_err, 'k.', 'MarkerSize', 0.1)
-        scatter(xx, yy2-xx, 10, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy2-xx, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
 %         errorbar(xx, yy2-xx, RV_FTL_err, 'k.', 'MarkerSize', 0.1)
         p0 = plot([min(xx), max(xx)], [0,0], 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
         hold off
@@ -375,16 +378,22 @@ end
 if 0
     % Compare with intrinsic line deformation RV % 
     h = figure; 
-        yyL = RV_FTL'*1000;
-        yyH = RV_FTH'*1000;
-        xx = (RV_gauss - RV_gauss(1))*1000;
+        yyL = RV_FTL*1000;
+        yyH = RV_FTH*1000;
+        RV_FTL_err(1) = mean(RV_FTL_err);
+        RV_FTH_err(1) = mean(RV_FTH_err);
+        xx = (RV_gauss - RV_gauss(1))'*1000;
         hold on
         p1 = scatter(xx, yyL, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+        errorbar(xx, yyL, RV_FTL_err, 'k.', 'MarkerSize', 0.1)
         p1 = scatter(xx, yyH, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.4);
-        p_fitL = polyfit(xx,yyL,1)
-        p_fitH = polyfit(xx,yyH,1)
-        p3 = plot([min(xx), max(xx)], polyval(p_fitL,[min(xx), max(xx)]), 'k-', 'LineWidth', 2); p3.Color(4)=0.8;
-        p4 = plot([min(xx), max(xx)], polyval(p_fitH,[min(xx), max(xx)]), 'k-', 'LineWidth', 2); p4.Color(4)=0.4;
+        errorbar(xx, yyH, RV_FTH_err, 'k.', 'MarkerSize', 0.1)
+        [fitresult, gof]= createFit(xx, yyL, 1./(RV_FTL_err).^2);
+        fitresult        
+        p3 = plot([min(xx), max(xx)], [fitresult.p1*min(xx)+fitresult.p2, fitresult.p1*max(xx)+fitresult.p2], 'k-', 'LineWidth', 2); p3.Color(4)=0.8;
+        [fitresult, gof]= createFit(xx, yyH, 1./(0.08+RV_FTH_err).^2);
+        fitresult        
+        p4 = plot([min(xx), max(xx)], [fitresult.p1*min(xx)+fitresult.p2, fitresult.p1*max(xx)+fitresult.p2], 'k-', 'LineWidth', 2); p4.Color(4)=0.4;
         hold off
         xlabel('Jitter (RV_{Gaussian}) [m/s]')
         ylabel('RV_{FT} [m/s]')                     
@@ -415,13 +424,13 @@ if 0
         scatter(xx, yy2, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5);
         hold off
         title('Apparent RV of deformed line profile')
-        legend({'FT', 'Gaussian'}, 'Location', 'northwest')
+        legend({'RV_{FT}', 'RV_{Gaussian}'}, 'Location', 'northwest')
         ylabel('RV [m/s]')
         set(gca,'fontsize',15)
     ax2 = subplot(3,1,3);
         scatter(xx, yy1 - yy2, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         xlabel('Stellar rotation phase')
-        ylabel('Residual [m/s]')
+        ylabel('RV difference [m/s]')
         set(gca,'fontsize',15)
     saveas(gcf,'5-JITTER_ONLY_3','png')
     close(h)
