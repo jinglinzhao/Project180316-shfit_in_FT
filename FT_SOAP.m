@@ -237,6 +237,19 @@ for i = 1:N_FILE
     end
     % Phase angle -> RV
     weight          = FFT_power(nl,i)';
+
+    if 0 % another way of fitting (from matlab manual but slower)
+        ft = fittype( 'p1*x+p2', 'independent', 'x', 'dependent', 'y' );
+        [xData, yData, weights] = prepareCurveData( xx, yy', weight);
+        opts = fitoptions( ft );
+        opts.Display = 'Off';
+        opts.Lower = [-Inf -Inf];
+        opts.StartPoint = [0 0];
+        opts.Upper = [Inf Inf];
+        opts.Weights = weight;
+        [fitresult, gof] = fit( xData, yData, ft, opts );
+    end
+    
     [fitresult, gof]= createFit(xx, yy', weight);
     slope(i)        = fitresult.p1;
     RV_FTL(i)       = -slope(i) / (2*pi);
@@ -380,38 +393,42 @@ if 0
     h = figure; 
         yyL = RV_FTL*1000;
         yyH = RV_FTH*1000;
-        RV_FTL_err(1) = mean(RV_FTL_err);
-        RV_FTH_err(1) = mean(RV_FTH_err);
         xx = (RV_gauss - RV_gauss(1))'*1000;
         hold on
         p1 = scatter(xx, yyL, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
-        errorbar(xx, yyL, RV_FTL_err, 'k.', 'MarkerSize', 0.1)
+%         errorbar(xx, yyL, RV_FTL_err, 'k.', 'MarkerSize', 0.1)
         p1 = scatter(xx, yyH, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.4);
-        errorbar(xx, yyH, RV_FTH_err, 'k.', 'MarkerSize', 0.1)
-        [fitresult, gof]= createFit(xx, yyL, 1./(RV_FTL_err).^2);
-        fitresult        
-        p3 = plot([min(xx), max(xx)], [fitresult.p1*min(xx)+fitresult.p2, fitresult.p1*max(xx)+fitresult.p2], 'k-', 'LineWidth', 2); p3.Color(4)=0.8;
-        [fitresult, gof]= createFit(xx, yyH, 1./(0.08+RV_FTH_err).^2);
-        fitresult        
-        p4 = plot([min(xx), max(xx)], [fitresult.p1*min(xx)+fitresult.p2, fitresult.p1*max(xx)+fitresult.p2], 'k-', 'LineWidth', 2); p4.Color(4)=0.4;
+%         errorbar(xx, yyH, RV_FTH_err, 'k.', 'MarkerSize', 0.1)
+        [fitresult_L, gof]= createFit(xx, yyL, 1./(1+RV_FTL_err*0).^2);
+        fitresult_L        
+        L1 = fitresult_L.p1;
+        L2 = fitresult_L.p2;
+        p3 = plot([min(xx), max(xx)], [L1*min(xx)+L2, L1*max(xx)+L2], 'k-', 'LineWidth', 2); p3.Color(4)=0.3;
+        [fitresult_H, gof]= createFit(xx, yyH, 1./(1+RV_FTL_err).^2);
+        fitresult_H        
+        H1 = fitresult_H.p1;
+        H2 = fitresult_H.p2;
+        p4 = plot([min(xx), max(xx)], [H1*min(xx)+H2, H1*max(xx)+H2], 'k-', 'LineWidth', 2); p4.Color(4)=0.3;
         hold off
         xlabel('Jitter (RV_{Gaussian}) [m/s]')
         ylabel('RV_{FT} [m/s]')                     
-        legend({'FT_{low-pass}', 'FT_{high-pass}'}, 'Location', 'northwest')
+        legend({'RV_{FT,L}', 'RV_{FT,H}'}, 'Location', 'northwest')
         set(gca,'fontsize', 15)
         saveas(gcf,'5-JITTER_ONLY_1','png')
     close(h)
     % p_fit =     0.7974   -0.0025 FOR A THREE-SPOT CONFIGRATION (0.8104)
     % p_fit =     0.7736   -0.2375 FOR A TWO-SPOT CONFIGRATION 
 
-    h = figure; 
-        plot(xx, xx - yy, 'o')
-        p_fit = polyfit(xx, xx - yy,1)
-        title('FT with jitter only (residual)')
-        xlabel('RV_{Gaussian} [m/s]')
-        ylabel('RV_{Gaussian} - RV_{FT} (m/s)')
-        saveas(gcf,'5-JITTER_ONLY_2','png')
-    close(h)
+    if 0
+        h = figure; 
+            plot(xx, xx - yy, 'o')
+            p_fit = polyfit(xx, xx - yy,1)
+            title('FT with jitter only (residual)')
+            xlabel('RV_{Gaussian} [m/s]')
+            ylabel('RV_{Gaussian} - RV_{FT} (m/s)')
+            saveas(gcf,'5-JITTER_ONLY_2','png')
+        close(h)
+    end
     
     % TIME SERIES
     h = figure;
@@ -442,19 +459,19 @@ if 0
         yy = (RV_gauss - RV_gauss(1))*1000;
         hold on 
         scatter(xx, yy, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 1);
-        scatter(xx, (yyL-p_fitL(2))/p_fitL(1), 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
-        scatter(xx, (yyH-p_fitH(2))/p_fitH(1), 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.4);
+        scatter(xx, (yyL-L2)/L1, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+        scatter(xx, (yyH-H2)/H1, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
         hold off
         legend({'Jitter', 'RV_{FT,L} / k_{L}', 'RV_{FT,H} / k_{H}'}, 'Location', 'northwest')
         ylabel('RV [m/s]')
         set(gca,'fontsize',15)
     ax2 = subplot(3,1,3);
         hold on
-        scatter(xx, (yyL-p_fitL(2))/p_fitL(1) - yy, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
-        scatter(xx, (yyH-p_fitH(2))/p_fitH(1) - yy, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.4);
+        scatter(xx, (yyL-L2)/L1 - yy', 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+        scatter(xx, (yyH-H2)/H1 - yy', 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
         hold off
-        rms((yyL-p_fitL(2))/p_fitL(1) - yy)
-        rms((yyH-p_fitH(2))/p_fitH(1) - yy)
+        rms((yyL-L2)/L1 - yy')
+        rms((yyH-H2)/H1 - yy')
         xlabel('Stellar rotation phase')
         ylabel('Residual [m/s]')
         set(gca,'fontsize',15)
