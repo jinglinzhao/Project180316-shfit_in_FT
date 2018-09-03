@@ -53,7 +53,7 @@ FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
 % v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-v_planet_array  = 2 * sin(t/100.*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+v_planet_array  = 2 * sin(t/100.*3.14*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -285,6 +285,67 @@ close(h)
 % test
 % figure; plot(1:100, wegihted_velocity, 1:100, RV_FT*1000)
 
+%%%%%%%%%%%%%
+% test mode % 
+%%%%%%%%%%%%%
+XX = RV_FT';
+YY = RV_FTL';
+ZZ = RV_FTH';
+
+[fitresult, gof]= createFit(ZZ-YY, XX-YY, XX*0+1);
+alpha = fitresult.p1;
+
+
+sl = 2;
+XX    = FUNCTION_GAUSSIAN_SMOOTHING(t', XX, t, sl)'*1000;
+YY    = FUNCTION_GAUSSIAN_SMOOTHING(t', YY, t, sl)'*1000;
+ZZ    = FUNCTION_GAUSSIAN_SMOOTHING(t', ZZ, t, sl)'*1000;
+
+% Don't use fminunc, fmincon because it finds only the local minimum 
+% e.g. options = optimoptions(@fminunc,'Algorithm','trust-region');
+% e.g. problem = createOptimProblem('fmincon','objective',rf2, 'x0',k0);
+
+% Find minimum of function using simulated annealing algorithm
+% proves wroking 
+
+rf2 = @(k) sum( (k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
+              + (k(2)*XX - (k(2)-1)* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 );     % objective
+XX_range = max(XX)-min(XX);
+k0 = [0.8, 1.5, 1,          1,      1,          0,      0];                                                
+lb = [0.0, 1.0, 0,          0,      0,          -Inf,   -Inf];
+ub = [1.0, 3.0, XX_range,   10,     2*pi,       Inf,    Inf];
+k = simulannealbnd(rf2,k0,lb,ub)
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% LINE SHIFT AND JITTER %
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Compare the total input RV and with the recovered RV
+
+    % TIME SERIES
+    ax2 = subplot(5,1,3:4); 
+    % 0.8569
+    % 1.9273
+% p_fit1 =
+%     0.2510    0.0250
+% p_fit2 =
+%     0.4504    0.1285    
+%         RV_L        = (YY-0.73*XX)./(1-0.73);
+%         RV_H        = (ZZ-1.33*XX)./(1-1.33);
+        RV_L = (YY-k(1)*XX)/(1-k(1));
+        k2 = (1-k(1))/alpha+1;
+%         RV_H = (ZZ-k(2)*XX)./(1-k(2));
+        RV_H = (ZZ- ((1-k(1))/alpha+1)*XX) / (k(1)-1) * alpha ;
+        hold on
+%         plot(t, jitter'-mean(jitter'), '^')
+%         plot(t, (yyH-yyL)/1000, '<')
+        plot(t, RV_L ,'o')
+        plot(t, RV_H ,'s')
+        hold off
+        
+        
+
 %%%%%%%%%%%%%%%%%%%
 % ONLY LINE SHIFT %
 %%%%%%%%%%%%%%%%%%%
@@ -514,7 +575,7 @@ if 1
         plot(t, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth', 3)
         scatter(t, jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
 
-        rv_H        = yyH - yyL;
+        rv_H        = yyH - yy2;
         y_smooth2    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t_smooth, 2);
         y_smooth22    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t, 2);
         p_fit2 = polyfit(xx2, rv_H, 1)
@@ -536,7 +597,7 @@ if 1
         ax3 = subplot(5,1,5);
         hold on 
         scatter(t, jitter_model1 - xx2, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(t, xx2 - jitter_model2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t, jitter_model2 - xx2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         plot1 = plot(t, (y_smooth11-p_fit1(2))/p_fit1(1) - xx2, 'k', 'LineWidth', 2);
         plot1.Color(4) = 0.4; 
         hold off
