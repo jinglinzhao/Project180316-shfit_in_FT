@@ -304,24 +304,11 @@ XX    = FUNCTION_GAUSSIAN_SMOOTHING(t', XX, t, sl)';
 YY    = FUNCTION_GAUSSIAN_SMOOTHING(t', YY, t, sl)';
 ZZ    = FUNCTION_GAUSSIAN_SMOOTHING(t', ZZ, t, sl)';
 
-range = 2 * (max(XX)-min(XX)) * 10;
-% Model 1 %
-rf = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200) + k(202) - YY*10).^2 + ...
-    (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200) + k(203) - ZZ*10).^2);
-k0 = zeros(203,1);
-k0(1:200) = mean(YY)*10;
-k0(201:203) = [0.8, mean(YY)*10, mean(ZZ)*10];
-lb = zeros(203,1) - range;
-lb(201:203) = [0., min(YY)*2*10, min(ZZ)*2*10];
-ub = zeros(203,1) + range;
-ub(201:203) = [1., max(YY)*2*10, max(ZZ)*2*10];
-k = simulannealbnd(rf,k0,lb,ub);
-plot(t, k(1:200), 'o')
-
 % sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - YY).^2 + ...
 %     (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200)*100 + k(203) - ZZ).^2)
 % ans =
 %    22.6141
+
 range = 2 * (max(XX)-min(XX));
 % Model 1 %
 rf          = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202)*100 - YY).^2 + ...
@@ -338,7 +325,7 @@ plot(t, k(1:200), 'o')
 
 
 range = 2 * (max(XX)-min(XX));
-% Model 1 %
+% Model 1 -- only get rid of the offsets from Model 1 %
 rf          = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 - YY).^2 + ...
                 (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200)*100 - ZZ).^2); % 100.3
 k0          = zeros(201,1);
@@ -349,38 +336,51 @@ lb(201)     = 0.;
 ub          = ones(201,1) * range / 100;
 ub(201)     = 1.;
 k = simulannealbnd(rf,k0,lb,ub);
-plot(t, k(1:200), 'o')
+figure; plot(t, k(1:200), 'o')
 
-% approach 2 %
-rf = @(k) sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 );
-k0 = [0.8/10,1.5/10, 0.];
-lb = [0, 1/10, -10/100];
-ub = [1, 5/10, 10/100];
-k = simulannealbnd(rf,k0,lb,ub)
-disp(sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 ))
+if 0 % do not return good enough results: 0.0908    0.1628   -0.0000
+    % Model 1 - approach 2 %
+    rf = @(k) sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 );
+    k0 = [0.8/10,1.5/10, 0.];
+    lb = [0, 1/10, -10/100];
+    ub = [1, 5/10, 10/100];
+    k = simulannealbnd(rf,k0,lb,ub)
+    disp(sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 ))
 
-% approach 2 %
-rf = @(k) sum( (((1-k(1))/alpha+1)*XX - (k(1)-1)/alpha/(1-k(1))*(YY-k(1)*XX) + k(2)*10 - ZZ).^2 );
-k0 = [0.7, 0.];
-lb = [0, -10/100];
-ub = [1, 10/100];
-k = simulannealbnd(rf,k0,lb,ub)
-disp(sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 ))
+    % Model 1 - approach 3 %
+    rf = @(k) sum( (((1-k(1))/alpha+1)*XX - (k(1)-1)/alpha/(1-k(1))*(YY-k(1)*XX) + k(2)*10 - ZZ).^2 );
+    k0 = [0.7, 0.];
+    lb = [0, -10/100];
+    ub = [1, 10/100];
+    k = simulannealbnd(rf,k0,lb,ub)
+    disp(sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 ))
+end
 
 
 
-
-% Model 2 %
+% Model 2 -- only YY%
 rfY = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - YY).^2 );
-k0 = zeros(201,1);
+k0 = zeros(202,1);
 k0(1:200) = mean(XX)/100;
 k0(201) = 0.8;
 lb = zeros(202,1) - range/100;
-lb(201) = 0.;
+lb(201:202) = [0., min(YY)*2];
 ub = zeros(201,1) + range/100;
-ub(1) = 1.;
-kY = simulannealbnd(rfY,k0,lb,ub)
-plot(t, kY(1:20), 'o')
+ub(201:202) = [1.,max(YY)*2];
+kY = simulannealbnd(rfY,k0,lb,ub);
+figure; plot(t, kY(1:200)*100, 'o')
+
+% Model 3 -- only ZZ%
+rfZ = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - ZZ).^2 );
+k0 = zeros(202,1);
+k0(1:200) = mean(XX)/100;
+k0(201) = 1.8;
+lb = zeros(202,1) - range/100;
+lb(201:202) = [1., min(YY)*2];
+ub = zeros(201,1) + range/100;
+ub(201:202) = [5,max(YY)*2];
+kZ = simulannealbnd(rfZ,k0,lb,ub);
+figure; plot(t, kY(1:200)*100, 'o')
 
 % fit curve %
 fit_sin = @(q) sum( (q(1)*sin(t'/100.*q(2)*2*pi + q(3)) + q(4) - k(1:200)*100).^2 );
@@ -396,11 +396,13 @@ hold off
 legend('recovered RV', 'fit')
 
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 rf2 = @(k) sum( 0.1*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
               + 0.9*(k(2)*XX - (k(2)-1)* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 );     % objective
 
+% rf2 = @(k) sum( 0.1*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
+%               + 0.9*(((1-k(1))/alpha+1)*XX - (k(1)-1)/alpha* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 );     % objective   
 % Don't use fminunc, fmincon because it finds only the local minimum 
 % e.g. options = optimoptions(@fminunc,'Algorithm','trust-region');
 % e.g. problem = createOptimProblem('fmincon','objective',rf2, 'x0',k0);
@@ -413,29 +415,33 @@ ub = [1.0, 5.0, XX_range,   10,     2*pi,       Inf,    Inf];
 k = simulannealbnd(rf2,k0,lb,ub)
 J = (ZZ - k(2)*(k(3)*sin(t'/100.*k(4)*2*pi + k(5))) ) / k(2);
 J2 = (YY - k(1)*(k(3)*sin(t'/100.*k(4)*2*pi + k(5)))) / k(1);
-plot(t,J-mean(J), 'o', t, J2, '^', t, (jitter-mean(jitter))*1000, '*')
+figure; plot(t,J-mean(J), 'o', t, J2, '^', t, (jitter-mean(jitter))*1000, '*')
+disp(sum( 0.5*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
+              + 0.5*(k(2)*XX - (k(2)-1)* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 ))
 
-% test XX and YY only (not accurate)
-rfY = @(k) sum( (k(1)*XX + (1-k(1))* (k(2)*sin(t/100.*k(3)*2*pi + k(4))) + k(5) - YY).^2 );     % objective
+% test XX and YY only (not accurate enough because of converging too slowly)
+rfY = @(k) sum( (k(1)*XX + (1-k(1))* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - YY).^2 );     % objective
 XX_range = max(XX)-min(XX);
 k0 = [0.8, 1,          1,      1,          0];                                                
-lb = [0.0, 0,          0,      0,          -Inf];
-ub = [1.0, XX_range,   10,     2*pi,       Inf];
+lb = [0.0, 0,          0,      0,          2*min(YY)];
+ub = [1.0, XX_range,   10,     2*pi,       2*max(YY)];
 k = simulannealbnd(rfY,k0,lb,ub)
+disp(sum( (k(1)*XX + (1-k(1))* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - YY).^2 ))
 
 % test XX and ZZ only 
-rfZ = @(k) sum( (k(1)*XX - (k(1)-1)* (k(2)*sin(t/100.*k(3)*2*pi + k(4))) + k(5) - ZZ).^2 );     % objective
+rfZ = @(k) sum( (k(1)*XX - (k(1)-1)* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - ZZ).^2 );     % objective
 XX_range = max(XX)-min(XX);
 k0 = [1.5,      1,          1,      1,          0];                                                
 lb = [1.0,      0,          0,      0,          -Inf];
 ub = [5.0,      XX_range,  10,     2*pi,       Inf];
 k = simulannealbnd(rfZ,k0,lb,ub)
+disp(sum( (k(1)*XX - (k(1)-1)* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - ZZ).^2 ))
 
 J = (ZZ - k(1)*(k(2)*sin(t/100.*k(3)*2*pi + k(4))) + k(5))/k(1);
 plot(t,J, 'o', t, (jitter-jitter(1))*1000, '*')
 
 % without correction
-rf = @(k) sum( (k(1)*sin(t/100.*k(2)*2*pi + k(3)) + k(4) - XX).^2 );     % objective
+rf = @(k) sum( (k(1)*sin(t'/100.*k(2)*2*pi + k(3)) + k(4) - XX).^2 );     % objective
 k0 = [1,          1,      1,          0];
 k = simulannealbnd(rf,k0)
 
