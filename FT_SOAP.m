@@ -288,12 +288,15 @@ close(h)
 %%%%%%%%%%%%%%%%
 % Minimization % 
 %%%%%%%%%%%%%%%%
+GG = (RV_gauss-mean(RV_gauss))*1000;
 XX = (RV_FT-mean(RV_FT))'*1000;
 YY = (RV_FTL-mean(RV_FTL))'*1000;
 ZZ = (RV_FTH-mean(RV_FTH))'*1000;
+dlmwrite('GG.txt', XX)
 dlmwrite('XX.txt', XX)
 dlmwrite('YY.txt', YY)
 dlmwrite('ZZ.txt', ZZ)
+% plot(t, GG, '*', t, (jitter-mean(jitter))*1000, 'o')
 
 [fitresult, gof]= createFit(ZZ-XX, XX-YY, XX*0+1);
 alpha = fitresult.p1'
@@ -668,7 +671,7 @@ end
 
 % Compare the total input RV and with the recovered RV
 if 1
-
+    s_len = 5;
     % TIME SERIES
     h = figure; 
     ax1 = subplot(5,1,1:2);
@@ -683,9 +686,9 @@ if 1
         hold off
         title('RV recovery')
         ylabel('RV [m/s]')    
-        legend({'RV_{FT,L}', 'RV_{FT,H}', 'Gaussian'}, 'Location', 'north')
+        legend({'RV_{FT,L}', 'RV_{FT,H}', 'RV_{Gaussian}'}, 'Location', 'north')
 %         legend({'RV_{FT,L}', 'Gaussian'}, 'Location', 'southwest')
-        set(gca,'fontsize', 12)
+        set(gca,'fontsize', 15)
         set(gca,'xticklabel',[])
 %         dlmwrite('RV_IN.txt', yy2)
 %         dlmwrite('RV_FT.txt', yy1)
@@ -694,9 +697,12 @@ if 1
         %     rv_g1 = sgolayfilt(rv_g1,2,11);
     ax2 = subplot(5,1,3:4); 
         rv_L        = yy2 - yyL;
+        rv_H        = yyH - yy2;
+        rv_HL        = 0.5*rv_L/alpha + 0.5*rv_H;
+        
         t_smooth    = linspace(1,200, 1000)';
-        y_smooth1    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t_smooth, 2);
-        y_smooth11   = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t, 2);
+        y_smooth1    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t_smooth, s_len);
+        y_smooth11   = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t, s_len);
         xx2 = (jitter- jitter(1))' * 1000;
         p_fit1 = polyfit(xx2, rv_L, 1)
         hold on
@@ -705,44 +711,61 @@ if 1
         plot(t, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth', 3)
         scatter(t, jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
 
-        rv_H        = yyH - yy2;
-        y_smooth2    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t_smooth, 2);
-        y_smooth22    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t, 2);
+        y_smooth3    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_HL, t_smooth, s_len);
+        y_smooth33    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_HL, t, s_len);
+        p_fit3 = polyfit(xx2, rv_HL, 1)
+        jitter_model3 = (rv_HL-p_fit3(2))/p_fit3(1);
+        scatter(t, jitter_model3, 20, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)  
+        
+        y_smooth2    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t_smooth, s_len);
+        y_smooth22    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t, s_len);
         p_fit2 = polyfit(xx2, rv_H, 1)
         jitter_model2 = (rv_H-p_fit2(2))/p_fit2(1);
-        scatter(t, jitter_model2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t, jitter_model2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         
+        jitter_y_val    = importdata('jitter_y_val.txt');
+        p_fit4 = polyfit(xx2, jitter_y_val, 1)
+        jitter_model4 = (jitter_y_val-p_fit4(2))/p_fit4(1);
+        plot(t, jitter_model4)
+
         plot1 = plot(t_smooth, (y_smooth1-p_fit1(2))/p_fit1(1), 'k', 'LineWidth', 2);
-        plot1.Color(4) = 0.4;        
+        plot1.Color(4) = 0.2;        
         plot2 = plot(t_smooth, (y_smooth2-p_fit2(2))/p_fit2(1), 'k', 'LineWidth', 2);
         plot2.Color(4) = 0.2;
+        plot2 = plot(t_smooth, (y_smooth3-p_fit3(2))/p_fit3(1), 'k', 'LineWidth', 2);
+        plot2.Color(4) = 0.2;        
 %             pbaspect(ax2,[5 1 1])
         hold off
         ylabel('Jitter [m/s]')   
-%         legend({'Jitter', 'Eq. 2.15', 'Eq. 2.16'}, 'Location', 'southwest')
-        legend({'Jitter', 'Model'}, 'Location', 'northwest')
-        set(gca,'fontsize', 12)
+        legend({'Input jitter', 'w_1=1', 'w_1=0.5', 'w_1=0'}, 'Location', 'north')
+        set(gca,'fontsize', 15)
         set(gca,'xticklabel',[])
 
         ax3 = subplot(5,1,5);
         hold on 
         scatter(t, jitter_model1 - xx2, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(t, jitter_model2 - xx2, 20, 'k+', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t, jitter_model2 - xx2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t, jitter_model3 - xx2, 15, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         plot1 = plot(t, (y_smooth11-p_fit1(2))/p_fit1(1) - xx2, 'k', 'LineWidth', 2);
         plot1.Color(4) = 0.4; 
         hold off
         xlabel('t')
         ylabel('Residual [m/s]')
-        set(gca,'fontsize', 12)
+        set(gca,'fontsize', 15)
         saveas(gcf,'5-PLANET_AND_JITTER2','png')
 
-        rms(xx2 - mean(xx2))
-        rms(jitter_model1 - xx2)
-        rms((y_smooth11-p_fit1(2))/p_fit1(1) - xx2)
-        rms(jitter_model2 - xx2)
-        rms((y_smooth22-p_fit2(2))/p_fit2(1) - xx2)
-        rms((jitter_model1 + jitter_model2)/2 - xx2)
-        rms(((y_smooth22-p_fit2(2))/p_fit2(1) + (y_smooth11-p_fit1(2))/p_fit1(1))/2 - xx2)
+        rms(xx2 - mean(xx2))    %1.2242
+        
+        rms(jitter_model1 - xx2) %0.6948
+        rms((y_smooth11-p_fit1(2))/p_fit1(1) - xx2) %0.5358
+        rms(jitter_model2 - xx2) %0.7755
+        rms((y_smooth22-p_fit2(2))/p_fit2(1) - xx2) %0.6168
+        rms(jitter_model3 - xx2) %0.7172
+        rms((y_smooth33-p_fit3(2))/p_fit3(1) - xx2) %0.5701
+        rms(jitter_model4 - xx2) 
+        
+        rms((jitter_model1 + jitter_model2)/2 - xx2) % 0.7191
+        rms(((y_smooth22-p_fit2(2))/p_fit2(1) + (y_smooth11-p_fit1(2))/p_fit1(1))/2 - xx2) %0.5720
     close(h) 
 
     
