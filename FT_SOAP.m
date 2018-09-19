@@ -5,9 +5,9 @@
 %%%%%%%%%%%%%%
 % Parameters %
 %%%%%%%%%%%%%%
-SN          = 10000;
+SN          = 2000;  %(0.5m/s error)
 % N_FILE      = 100;
-N_FILE      = 200;
+N_FILE      = 400;
 t           = 1:N_FILE;
 grid_size   = 0.1;
 Fs          = 1/grid_size;
@@ -18,7 +18,7 @@ dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
 % jitter      = jitter';
-jitter      = [jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
+jitter      = [jitter', jitter', jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
 
@@ -53,7 +53,7 @@ FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
 % v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-v_planet_array  = 2 * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+v_planet_array  = 20 * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -64,7 +64,7 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n);
+    v_planet    = v_planet_array(n) * 0;
     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
 %     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
@@ -292,7 +292,7 @@ GG = (RV_gauss-mean(RV_gauss))*1000;
 XX = (RV_FT-mean(RV_FT))'*1000;
 YY = (RV_FTL-mean(RV_FTL))'*1000;
 ZZ = (RV_FTH-mean(RV_FTH))'*1000;
-dlmwrite('GG.txt', XX)
+dlmwrite('GG.txt', GG)
 dlmwrite('XX.txt', XX)
 dlmwrite('YY.txt', YY)
 dlmwrite('ZZ.txt', ZZ)
@@ -723,10 +723,10 @@ if 1
         jitter_model2 = (rv_H-p_fit2(2))/p_fit2(1);
         scatter(t, jitter_model2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         
-        jitter_y_val    = importdata('jitter_y_val.txt');
-        p_fit4 = polyfit(xx2, jitter_y_val, 1)
-        jitter_model4 = (jitter_y_val-p_fit4(2))/p_fit4(1);
-        plot(t, jitter_model4)
+%         jitter_y_val    = importdata('jitter_y_val.txt');
+%         p_fit4 = polyfit(xx2, jitter_y_val, 1)
+%         jitter_model4 = (jitter_y_val-p_fit4(2))/p_fit4(1);
+%         plot(t, jitter_model4)
 
         plot1 = plot(t_smooth, (y_smooth1-p_fit1(2))/p_fit1(1), 'k', 'LineWidth', 2);
         plot1.Color(4) = 0.2;        
