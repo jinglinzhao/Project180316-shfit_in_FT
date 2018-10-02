@@ -18,6 +18,7 @@ dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
 % jitter      = jitter';
+% jitter      = [jitter', jitter'];
 jitter      = [jitter', jitter', jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
@@ -53,7 +54,7 @@ FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
 % v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-v_planet_array  = 20 * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+v_planet_array  = 2 * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -64,7 +65,7 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n) * 0;
+    v_planet    = v_planet_array(n);
     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
 %     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
@@ -671,7 +672,7 @@ end
 
 % Compare the total input RV and with the recovered RV
 if 1
-    s_len = 5;
+    s_len = 2;
     % TIME SERIES
     h = figure; 
     ax1 = subplot(5,1,1:2);
@@ -680,9 +681,9 @@ if 1
         yyH  = RV_FTH' * 1000;
         yy2  = (RV_gauss - RV_gauss(1)) * 1000;
         hold on
-        scatter(t, yyL, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
-        scatter(t, yyH, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
-        scatter(t, yy2, 15, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5);
+        scatter(t/100, yyL, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+        scatter(t/100, yyH, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+        scatter(t/100, yy2, 15, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5);
         hold off
         title('RV recovery')
         ylabel('RV [m/s]')    
@@ -708,48 +709,52 @@ if 1
         hold on
         jitter_model1 = (rv_L-p_fit1(2))/p_fit1(1);
         c = @cmu.colors;
-        plot(t, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth', 3)
-        scatter(t, jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        plot(t/100, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth', 3)
+        scatter(t/100, jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
 
         y_smooth3    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_HL, t_smooth, s_len);
         y_smooth33    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_HL, t, s_len);
         p_fit3 = polyfit(xx2, rv_HL, 1)
         jitter_model3 = (rv_HL-p_fit3(2))/p_fit3(1);
-        scatter(t, jitter_model3, 20, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)  
+        scatter(t/100, jitter_model3, 20, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)  
         
         y_smooth2    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t_smooth, s_len);
         y_smooth22    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t, s_len);
         p_fit2 = polyfit(xx2, rv_H, 1)
         jitter_model2 = (rv_H-p_fit2(2))/p_fit2(1);
-        scatter(t, jitter_model2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t/100, jitter_model2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         
 %         jitter_y_val    = importdata('jitter_y_val.txt');
 %         p_fit4 = polyfit(xx2, jitter_y_val, 1)
 %         jitter_model4 = (jitter_y_val-p_fit4(2))/p_fit4(1);
 %         plot(t, jitter_model4)
 
-        plot1 = plot(t_smooth, (y_smooth1-p_fit1(2))/p_fit1(1), 'k', 'LineWidth', 2);
+        plot1 = plot(t_smooth/100, (y_smooth1-p_fit1(2))/p_fit1(1), 'k', 'LineWidth', 2);
         plot1.Color(4) = 0.2;        
-        plot2 = plot(t_smooth, (y_smooth2-p_fit2(2))/p_fit2(1), 'k', 'LineWidth', 2);
+        plot2 = plot(t_smooth/100, (y_smooth2-p_fit2(2))/p_fit2(1), 'k', 'LineWidth', 2);
         plot2.Color(4) = 0.2;
-        plot2 = plot(t_smooth, (y_smooth3-p_fit3(2))/p_fit3(1), 'k', 'LineWidth', 2);
-        plot2.Color(4) = 0.2;        
+        plot3 = plot(t_smooth/100, (y_smooth3-p_fit3(2))/p_fit3(1), 'k', 'LineWidth', 2);
+        plot3.Color(4) = 0.2;        
 %             pbaspect(ax2,[5 1 1])
         hold off
-        ylabel('Jitter [m/s]')   
+        ylabel('Jitter [m/s]')
         legend({'Input jitter', 'w_1=1', 'w_1=0.5', 'w_1=0'}, 'Location', 'north')
         set(gca,'fontsize', 15)
         set(gca,'xticklabel',[])
 
         ax3 = subplot(5,1,5);
         hold on 
-        scatter(t, jitter_model1 - xx2, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(t, jitter_model2 - xx2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(t, jitter_model3 - xx2, 15, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        plot1 = plot(t, (y_smooth11-p_fit1(2))/p_fit1(1) - xx2, 'k', 'LineWidth', 2);
+        scatter(t/100, jitter_model1 - xx2, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t/100, jitter_model2 - xx2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t/100, jitter_model3 - xx2, 15, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        plot1 = plot(t/100, (y_smooth11-p_fit1(2))/p_fit1(1) - xx2, 'k', 'LineWidth', 2);
         plot1.Color(4) = 0.4; 
+        plot2 = plot(t/100, (y_smooth22-p_fit2(2))/p_fit2(1) - xx2, 'k', 'LineWidth', 2);
+        plot2.Color(4) = 0.4;         
+        plot3 = plot(t/100, (y_smooth33-p_fit3(2))/p_fit3(1) - xx2, 'k', 'LineWidth', 2);
+        plot3.Color(4) = 0.4;                 
         hold off
-        xlabel('t')
+        xlabel('Stellar rotation phase')
         ylabel('Residual [m/s]')
         set(gca,'fontsize', 15)
         saveas(gcf,'5-PLANET_AND_JITTER2','png')
