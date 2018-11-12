@@ -7,8 +7,8 @@
 %%%%%%%%%%%%%%
 SN          = 10000;  
 % SN          = 5000;  %(0.5m/s error)
+% N_FILE      = 200;
 N_FILE      = 200;
-% N_FILE      = 400;
 t           = 1:N_FILE;
 grid_size   = 0.1;
 Fs          = 1/grid_size;
@@ -68,7 +68,7 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n) * 0;
+    v_planet    = v_planet_array(n);
     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
 %     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
@@ -112,14 +112,36 @@ cutoff_power= max(max(FFT_power)) * 0.0001;
 f_max       = max(FFT_frequency(FFT_power(:,1) > cutoff_power));
 n           = abs(FFT_frequency) <= f_max;
 power_sum   = sum(FFT_power(n,1));
+if 0
+    cum = 0;
+    for i = 1:fix(sum(n)/2)
+        cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
+        if cum > power_sum/4
+            break
+        end
+    end
+    f_HL = FFT_frequency(size(FFT_power,1)/2+1+i);
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%
 cum = 0;
 for i = 1:fix(sum(n)/2)
     cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
-    if cum > power_sum/4
+    if cum > power_sum/2 * 1/3
         break
     end
 end
-f_HL = FFT_frequency(size(FFT_power,1)/2+1+i);
+f_H = FFT_frequency(size(FFT_power,1)/2+1+i);
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+cum = 0;
+for i = 1:fix(sum(n)/2)
+    cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
+    if cum > power_sum/2 * 2/3
+        break
+    end
+end
+f_L = FFT_frequency(size(FFT_power,1)/2+1+i);
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 % FT power in all epochs %
@@ -784,7 +806,7 @@ if 1
 %         legend({'RV_{FT,L}', 'Gaussian'}, 'Location', 'southwest')
         set(gca,'fontsize', 18)
 %         set(gca,'xticklabel',[])
-        ylim([-2 6])
+        ylim([-5 6])
 %         dlmwrite('RV_IN.txt', yy2)
 %         dlmwrite('RV_FT.txt', yy1)
 
@@ -795,7 +817,7 @@ if 1
         rv_H        = yyH - yy2;
         rv_HL       = 0.5*rv_L/alpha + 0.5*rv_H;
         
-        t_smooth    = linspace(1,200, 1000)';
+        t_smooth    = linspace(1,N_FILE, 1000)';
         y_smooth1    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t_smooth, s_len);
         y_smooth11   = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t, s_len);
         xx2 = (jitter- jitter(1))' * 1000;
@@ -832,7 +854,7 @@ if 1
 %             pbaspect(ax2,[5 1 1])
         hold off
         ylabel('Modelled jitter [m/s]')
-        ylim([-2 6])
+        ylim([-5 6])
         legend({'Input jitter', 'w_1=1', 'w_1=0.5', 'w_1=0'}, 'Location', 'north')
         set(gca,'fontsize', 18)
 %         set(gca,'xticklabel',[])
@@ -849,7 +871,7 @@ if 1
         plot3 = plot(t/100, (y_smooth33-p_fit3(2))/p_fit3(1) - xx2, 'k', 'LineWidth', 2);
         plot3.Color(4) = 0.2;                 
         hold off
-        ylim([-4 4])
+        ylim([-5 6])
         xlabel('Stellar rotation phase')
         ylabel('Residual [m/s]')
         set(gca,'fontsize', 18)
