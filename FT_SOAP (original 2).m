@@ -8,21 +8,19 @@
 SN          = 10000;  
 % SN          = 5000;  %(0.5m/s error)
 % N_FILE      = 100;
-N_FILE      = 200;
+N_FILE      = 400;
 t           = 1:N_FILE;
 grid_size   = 0.1;
 Fs          = 1/grid_size;
 v0          = (-20 : grid_size : 20)';          % km/s
-% dir1        = '/run/user/1000/gvfs/sftp:host=durufle.phys.unsw.edu.au,user=jzhao/Volumes/DataSSD/SOAP_2/outputs/02.01/';
-% dir2        = '/run/user/1000/gvfs/sftp:host=durufle.phys.unsw.edu.au,user=jzhao/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 dir1        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/';
 dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
 % jitter      = jitter';
-jitter      = [jitter', jitter'];
-% jitter      = [jitter', jitter', jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
+% jitter      = [jitter', jitter'];
+jitter      = [jitter', jitter', jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
 
@@ -57,7 +55,7 @@ FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
 % v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-v_planet_array  = 20 * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+v_planet_array  = 2 * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 

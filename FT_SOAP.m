@@ -5,8 +5,10 @@
 %%%%%%%%%%%%%%
 % Parameters %
 %%%%%%%%%%%%%%
-SN          = 10000;  
-% SN          = 5000;  %(0.5m/s error)
+K           = 0;
+% SN          = 10000;  
+SN          = 2000;
+% N_FILE      = 100;
 N_FILE      = 200;
 % N_FILE      = 400;
 t           = 1:N_FILE;
@@ -16,7 +18,8 @@ v0          = (-20 : grid_size : 20)';          % km/s
 % dir1        = '/run/user/1000/gvfs/sftp:host=durufle.phys.unsw.edu.au,user=jzhao/Volumes/DataSSD/SOAP_2/outputs/02.01/';
 % dir2        = '/run/user/1000/gvfs/sftp:host=durufle.phys.unsw.edu.au,user=jzhao/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 
-
+% dir1        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/';
+% dir2        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/CCF_dat/';
 dir1        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/';
 dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
@@ -59,8 +62,76 @@ FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
 % v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-v_planet_array  = 2 * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+v_planet_array  = K * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
+
+
+%%%%%%%%%%%%
+% HD189733 %
+%%%%%%%%%%%%
+if 0
+    array = (1:N_FILE)/100;
+    figure;
+    hold on 
+    plot(array(jitter==0), jitter(jitter==0)*1000, 'k.', 'MarkerSize', 20)
+    plot(array(jitter>0), jitter(jitter>0)*1000, 'b.', 'MarkerSize', 20)
+    plot(array(jitter<0), jitter(jitter<0)*1000, 'r.', 'MarkerSize', 20)
+    set(gca,'fontsize', 16)
+    xlabel('Phase')
+    ylabel('"Jitter" [m/s]')
+    title('RM effect of an infinitely dark spot')
+    hold off 
+    saveas(gcf,'Rossiter-McLaughlin_RV','png')
+
+    % construct a master template
+    h = figure;
+    hold on
+    A_tpl = zeros(size(A1));
+    for n = 1:N_FILE
+        filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
+        A           = 1 - importdata(filename);
+        A_spline    = spline(v0, A, v1+(jitter(n)-jitter(1)));
+        A_tpl       = A_tpl + A_spline;    
+    end     
+    A_tpl = A_tpl / N_FILE;
+    plot(v1, A_tpl)
+
+
+    % residual 
+    h = figure;
+    hold on
+    for n = 1:N_FILE
+
+        filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
+        A           = 1 - importdata(filename);
+        A_spline    = spline(v0, A, v1);
+    %     A_spline    = spline(v0, A, v1+(jitter(n)-jitter(1)));
+        if jitter(n) == 0
+            plot(v1, A_spline - A_tpl, 'k-')
+    %         plot(v1, A_spline, 'k-')
+        end
+        if jitter(n) > 0
+            plot(v1, A_spline - A_tpl, 'b-')
+    %         plot(v1, A_spline, 'b-')
+        end
+        if jitter(n) < 0
+            plot(v1, A_spline - A_tpl, 'r-')
+    %         plot(v1, A_spline, 'r-')
+        end    
+    end    
+    set(gca,'fontsize', 20)
+    xlabel('km/s')
+    ytickformat('%.3g')
+    ylabel('Normalized intensity')
+    % title({'Line profile of RM effect'})
+    title({'Residual line profile', 'of RM effect'})
+    % title({'Centred residual line profile', 'of RM effect'})
+    ylim([-0.004 0.004])
+    %ylim([-0.0005 0.0005])
+    saveas(gcf,'Line_profile_RM','png')
+    % saveas(gcf,'Residual_line_profile_RM','png')
+    % saveas(gcf,'Apparent_residual_line_profile_RM','png')
+end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -70,9 +141,9 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n) * 0;
-%     filename    = [dir2, 'CCF', num2str(mod(n,100)), '.dat'];
-    filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
+    v_planet    = v_planet_array(n);
+    filename    = [dir2, 'CCF', num2str(mod(n-1,100)), '.dat'];
+%     filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
 %     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
     A_spline    = spline(v0, A, v1-v_planet);
@@ -91,7 +162,10 @@ for n = 1:N_FILE
     RV_gauss(n) = f.b;
     
 %     A_spline    = A_spline .* window;
-
+    % NEW %
+    if K ==10
+        A_spline    = spline(v1, A_spline, v1+f.b);
+    end
     [FFT_frequency, FFT_power(:, n), Y(:, n)] = FUNCTION_FFT(A_spline, Fs);
     
 end     
@@ -102,19 +176,21 @@ set(gca,'fontsize',20)
 xlabel('km/s')
 ylabel('Normalized intensity')
 % saveas(gcf,'1-Line_Profile','png')
-saveas(gcf,'SLPD1-Differential_line_Profile','png')
+% saveas(gcf,'SLPD1-Differential_line_Profile','png')
 % saveas(gcf,'1-Differential_line_Profile','png')
 % saveas(gcf,'LPD1-Line_Profile','png')
 % saveas(gcf,'LPD1-Differential_line_Profile','png')
 close(h)
 
 % Determine the midpoint the equally divides the power spectrum %
-% cutoff_power= max(max(FFT_power)) * 0.00001;
-% cutoff_power= max(max(FFT_power)) * 0.001;
+% cutoff_power= max(max(FFT_power)) * 0.0001; % used for publication for demonstration purpose
+cutoff_power= max(max(FFT_power)) * 0.0005;
 % cutoff_power= max(max(FFT_power)) * 0.000005;
 f_max       = max(FFT_frequency(FFT_power(:,1) > cutoff_power));
 n           = abs(FFT_frequency) <= f_max;
 power_sum   = sum(FFT_power(n,1));
+
+% half power %
 if 1
     cum = 0;
     for i = 1:fix(sum(n)/2)
@@ -126,23 +202,37 @@ if 1
     f_HL = FFT_frequency(size(FFT_power,1)/2+1+i);
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%
-cum = 0;
-for i = 1:fix(sum(n)/2)
-    cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
-    if cum > power_sum/2 * 1/3
-        break
+% multi-star version:
+if 0
+    cum = 0;
+    for i = 0:fix(sum(n)/2)
+        cum = cum + FFT_power(size(FFT_power,1)/2+i,1);
+        if cum > power_sum/2
+            break
+        end
     end
-end
-f_H = FFT_frequency(size(FFT_power,1)/2+1+i);
+    f_HL = FFT_frequency(size(FFT_power,1)/2+i);
+end 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
-cum = 0;
-for i = 1:fix(sum(n)/2)
-    cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
-    if cum > power_sum/2 * 2/3
-        break
+if 0
+    cum = 0;
+    for i = 1:fix(sum(n)/2)
+        cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
+        if cum > power_sum/2 * 1/3
+            break
+        end
     end
-end
-f_L = FFT_frequency(size(FFT_power,1)/2+1+i);
+    f_H = FFT_frequency(size(FFT_power,1)/2+1+i);
+    %%%%%%%%%%%%%%%%%%%%%%%%%%
+    cum = 0;
+    for i = 1:fix(sum(n)/2)
+        cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
+        if cum > power_sum/2 * 2/3
+            break
+        end
+    end
+    f_L = FFT_frequency(size(FFT_power,1)/2+1+i);
+end    
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 % old version %
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -299,17 +389,17 @@ text((f_max+0.2)/2, 0, '\oslash', 'FontSize', 20, 'HorizontalAlignment','center'
 text(-(f_max+0.2)/2, 0, '\oslash', 'FontSize', 20, 'HorizontalAlignment','center')
 hold off
 set(gca,'fontsize',20)
-ylim([-ymax ymax])
+% ylim([-ymax ymax])
 xlim([-0.199 0.199])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
-% saveas(gcf,'4-Relative_phase_angle','png')
+saveas(gcf,'4-Relative_phase_angle','png')
 % saveas(gcf,'LPD4-Relative_phase_angle','png')
-saveas(gcf,'SLPD4-Relative_phase_angle','png')
+% saveas(gcf,'SLPD4-Relative_phase_angle','png')
 close(h)
 
 % Low-pass %
-nl      =  (abs(FFT_frequency) < f_HL);
+nl      =  (abs(FFT_frequency) <= f_HL);
 RV_FTL  = zeros(1,N_FILE);
 RV_FTL_err  = zeros(1,N_FILE);
 h       = figure; 
@@ -347,9 +437,9 @@ xlim([0 f_HL])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
 title('Low-pass')
-% saveas(gcf,'4-Relative_phase_angle_L','png')
+saveas(gcf,'4-Relative_phase_angle_L','png')
 % saveas(gcf,'LPD4-Relative_phase_angle_L','png')
-saveas(gcf,'SLPD4-Relative_phase_angle_L','png')
+% saveas(gcf,'SLPD4-Relative_phase_angle_L','png')
 close(h)
 
 % high-pass % 
@@ -380,9 +470,9 @@ xlim([f_HL f_max])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
 title('High-pass')
-% saveas(gcf,'4-Relative_phase_angle_H','png')
+saveas(gcf,'4-Relative_phase_angle_H','png')
 % saveas(gcf,'LPD4-Relative_phase_angle_H','png')
-saveas(gcf,'SLPD4-Relative_phase_angle_H','png')
+% saveas(gcf,'SLPD4-Relative_phase_angle_H','png')
 close(h)
 
 % test
@@ -395,197 +485,217 @@ GG = (RV_gauss-mean(RV_gauss))*1000;
 XX = (RV_FT-mean(RV_FT))'*1000;
 YY = (RV_FTL-mean(RV_FTL))'*1000;
 ZZ = (RV_FTH-mean(RV_FTH))'*1000;
-dlmwrite('GG.txt', GG)
-dlmwrite('XX.txt', XX)
-dlmwrite('YY.txt', YY)
-dlmwrite('ZZ.txt', ZZ)
+
+if K == 10
+    dlmwrite('GG.txt', GG)
+    dlmwrite('XX.txt', XX)
+    dlmwrite('YY.txt', -YY)
+    dlmwrite('ZZ.txt', ZZ)
+else
+    dlmwrite('GG.txt', GG)
+    dlmwrite('XX.txt', XX)
+    dlmwrite('YY.txt', GG-YY)
+    dlmwrite('ZZ.txt', ZZ-GG)
+end
 % plot(t, GG, '*', t, (jitter-mean(jitter))*1000, 'o')
 
-[fitresult, gof]= createFit(ZZ-GG, GG-YY, XX*0+1);
-alpha = fitresult.p1'
 
-% smoothing %
-sl = 2;
-XX    = FUNCTION_GAUSSIAN_SMOOTHING(t', XX, t, sl)';
-YY    = FUNCTION_GAUSSIAN_SMOOTHING(t', YY, t, sl)';
-ZZ    = FUNCTION_GAUSSIAN_SMOOTHING(t', ZZ, t, sl)';
-
-% sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - YY).^2 + ...
-%     (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200)*100 + k(203) - ZZ).^2)
-% ans =
-%    22.6141
-
-range = 2 * (max(XX)-min(XX));
-% Model 1 %
-rf          = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202)*100 - YY).^2 + ...
-                (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200)*100 + k(203)*100 - ZZ).^2); %17.5049
-k0          = zeros(203,1);
-k0(1:200)   = mean(YY) / 100;
-k0(201)     = 0.8;
-lb          = -ones(203,1) * range / 100;
-lb(201:203) = [0., min(YY)*2/100, min(ZZ)*2/100];
-ub          = ones(203,1) * range / 100;
-ub(201:203) = [1., max(YY)*2/100, max(ZZ)*2/100];
-k           = simulannealbnd(rf,k0,lb,ub);
-plot(t, k(1:200), 'o')
-
-
-range = 2 * (max(XX)-min(XX));
-% Model 1 -- only get rid of the offsets from Model 1 %
-rf          = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 - YY).^2 + ...
-                (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200)*100 - ZZ).^2); % 100.3
-k0          = zeros(201,1);
-k0(1:200)   = mean(YY) / 100;
-k0(201)     = 0.8;
-lb          = -ones(201,1) * range / 100;
-lb(201)     = 0.;
-ub          = ones(201,1) * range / 100;
-ub(201)     = 1.;
-k = simulannealbnd(rf,k0,lb,ub);
-figure; plot(t, k(1:200), 'o')
-
-if 0 % do not return good enough results: 0.0908    0.1628   -0.0000
-    % Model 1 - approach 2 %
-    rf = @(k) sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 );
-    k0 = [0.8/10,1.5/10, 0.];
-    lb = [0, 1/10, -10/100];
-    ub = [1, 5/10, 10/100];
-    k = simulannealbnd(rf,k0,lb,ub)
-    disp(sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 ))
-
-    % Model 1 - approach 3 %
-    rf = @(k) sum( (((1-k(1))/alpha+1)*XX - (k(1)-1)/alpha/(1-k(1))*(YY-k(1)*XX) + k(2)*10 - ZZ).^2 );
-    k0 = [0.7, 0.];
-    lb = [0, -10/100];
-    ub = [1, 10/100];
-    k = simulannealbnd(rf,k0,lb,ub)
-    disp(sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 ))
-end
+%     [fitresult, gof]= createFit(ZZ-GG, GG-YY, XX*0+1);
+    [fitresult, gof]= createFit(ZZ-XX, XX-YY, XX*0+1);
+    alpha = fitresult.p1'
 
 
 
-% Model 2 -- only YY%
-rfY = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - YY).^2 );
-k0 = zeros(202,1);
-k0(1:200) = mean(XX)/100;
-k0(201) = 0.8;
-lb = zeros(202,1) - range/100;
-lb(201:202) = [0., min(YY)*2];
-ub = zeros(201,1) + range/100;
-ub(201:202) = [1.,max(YY)*2];
-kY = simulannealbnd(rfY,k0,lb,ub);
-figure; plot(t, kY(1:200)*100, 'o')
-
-% Model 3 -- only ZZ%
-rfZ = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - ZZ).^2 );
-k0 = zeros(202,1);
-k0(1:200) = mean(XX)/100;
-k0(201) = 1.8;
-lb = zeros(202,1) - range/100;
-lb(201:202) = [1., min(YY)*2];
-ub = zeros(201,1) + range/100;
-ub(201:202) = [5,max(YY)*2];
-kZ = simulannealbnd(rfZ,k0,lb,ub);
-figure; plot(t, kY(1:200)*100, 'o')
-
-% fit curve %
-fit_sin = @(q) sum( (q(1)*sin(t'/100.*q(2)*2*pi + q(3)) + q(4) - k(1:200)*100).^2 );
-q0      = [rms(XX), 1., 0., 0.];
-lb      = [0, 0, -pi, -5 ];
-ub      = [range, 10, pi, 5];
-q       = simulannealbnd(fit_sin,q0,lb,ub)
-
-hold on
-plot(t, k(1:200)*100, 'o')
-plot(t, q(1)*sin(t'/100.*q(2)*2*pi + q(3)) + q(4))
-hold off
-legend('recovered RV', 'fit')
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if 0
 
-rf2 = @(k) sum( 0.1*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
-              + 0.9*(k(2)*XX - (k(2)-1)* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 );     % objective
 
-% rf2 = @(k) sum( 0.1*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
-%               + 0.9*(((1-k(1))/alpha+1)*XX - (k(1)-1)/alpha* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 );     % objective   
-% Don't use fminunc, fmincon because it finds only the local minimum 
-% e.g. options = optimoptions(@fminunc,'Algorithm','trust-region');
-% e.g. problem = createOptimProblem('fmincon','objective',rf2, 'x0',k0);
+    % smoothing %
+    sl = 2;
+    XX    = FUNCTION_GAUSSIAN_SMOOTHING(t', XX, t, sl)';
+    YY    = FUNCTION_GAUSSIAN_SMOOTHING(t', YY, t, sl)';
+    ZZ    = FUNCTION_GAUSSIAN_SMOOTHING(t', ZZ, t, sl)';
 
-% Find minimum of function using simulated annealing algorithm -- proves wroking 
-XX_range = max(XX)-min(XX);
-k0 = [0.8, 1.5, 1,          1,      1,          0,      0];                                                
-lb = [0.0, 1.0, 0,          0,      0,          -Inf,   -Inf];
-ub = [1.0, 5.0, XX_range,   10,     2*pi,       Inf,    Inf];
-k = simulannealbnd(rf2,k0,lb,ub)
-J = (ZZ - k(2)*(k(3)*sin(t'/100.*k(4)*2*pi + k(5))) ) / k(2);
-J2 = (YY - k(1)*(k(3)*sin(t'/100.*k(4)*2*pi + k(5)))) / k(1);
-figure; plot(t,J-mean(J), 'o', t, J2, '^', t, (jitter-mean(jitter))*1000, '*')
-disp(sum( 0.5*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
-              + 0.5*(k(2)*XX - (k(2)-1)* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 ))
+    % sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - YY).^2 + ...
+    %     (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200)*100 + k(203) - ZZ).^2)
+    % ans =
+    %    22.6141
 
-% test XX and YY only (not accurate enough because of converging too slowly)
-rfY = @(k) sum( (k(1)*XX + (1-k(1))* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - YY).^2 );     % objective
-XX_range = max(XX)-min(XX);
-k0 = [0.8, 1,          1,      1,          0];                                                
-lb = [0.0, 0,          0,      0,          2*min(YY)];
-ub = [1.0, XX_range,   10,     2*pi,       2*max(YY)];
-k = simulannealbnd(rfY,k0,lb,ub)
-disp(sum( (k(1)*XX + (1-k(1))* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - YY).^2 ))
+    range = 2 * (max(XX)-min(XX));
+    % Model 1 %
+    rf          = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202)*100 - YY).^2 + ...
+                    (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200)*100 + k(203)*100 - ZZ).^2); %17.5049
+    k0          = zeros(203,1);
+    k0(1:200)   = mean(YY) / 100;
+    k0(201)     = 0.8;
+    lb          = -ones(203,1) * range / 100;
+    lb(201:203) = [0., min(YY)*2/100, min(ZZ)*2/100];
+    ub          = ones(203,1) * range / 100;
+    ub(201:203) = [1., max(YY)*2/100, max(ZZ)*2/100];
+    k           = simulannealbnd(rf,k0,lb,ub);
+    plot(t, k(1:200), 'o')
 
-% test XX and ZZ only 
-rfZ = @(k) sum( (k(1)*XX - (k(1)-1)* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - ZZ).^2 );     % objective
-XX_range = max(XX)-min(XX);
-k0 = [1.5,      1,          1,      1,          0];                                                
-lb = [1.0,      0,          0,      0,          -Inf];
-ub = [5.0,      XX_range,  10,     2*pi,       Inf];
-k = simulannealbnd(rfZ,k0,lb,ub)
-disp(sum( (k(1)*XX - (k(1)-1)* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - ZZ).^2 ))
 
-J = (ZZ - k(1)*(k(2)*sin(t/100.*k(3)*2*pi + k(4))) + k(5))/k(1);
-plot(t,J, 'o', t, (jitter-jitter(1))*1000, '*')
+    range = 2 * (max(XX)-min(XX));
+    % Model 1 -- only get rid of the offsets from Model 1 %
+    rf          = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 - YY).^2 + ...
+                    (((1-k(201))/alpha+1)*XX + (k(201)-1)/alpha*k(1:200)*100 - ZZ).^2); % 100.3
+    k0          = zeros(201,1);
+    k0(1:200)   = mean(YY) / 100;
+    k0(201)     = 0.8;
+    lb          = -ones(201,1) * range / 100;
+    lb(201)     = 0.;
+    ub          = ones(201,1) * range / 100;
+    ub(201)     = 1.;
+    k = simulannealbnd(rf,k0,lb,ub);
+    figure; plot(t, k(1:200), 'o')
 
-% without correction
-rf = @(k) sum( (k(1)*sin(t'/100.*k(2)*2*pi + k(3)) + k(4) - XX).^2 );     % objective
-k0 = [1,          1,      1,          0];
-k = simulannealbnd(rf,k0)
+    if 0 % do not return good enough results: 0.0908    0.1628   -0.0000
+        % Model 1 - approach 2 %
+        rf = @(k) sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 );
+        k0 = [0.8/10,1.5/10, 0.];
+        lb = [0, 1/10, -10/100];
+        ub = [1, 5/10, 10/100];
+        k = simulannealbnd(rf,k0,lb,ub)
+        disp(sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 ))
+
+        % Model 1 - approach 3 %
+        rf = @(k) sum( (((1-k(1))/alpha+1)*XX - (k(1)-1)/alpha/(1-k(1))*(YY-k(1)*XX) + k(2)*10 - ZZ).^2 );
+        k0 = [0.7, 0.];
+        lb = [0, -10/100];
+        ub = [1, 10/100];
+        k = simulannealbnd(rf,k0,lb,ub)
+        disp(sum( (k(2)*10*XX - (k(2)*10-1)/(1-k(1)*10)*(YY-k(1)*10*XX) + k(3)*100 - ZZ).^2 ))
+    end
 
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%
-% LINE SHIFT AND JITTER %
-%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Model 2 -- only YY%
+    rfY = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - YY).^2 );
+    k0 = zeros(202,1);
+    k0(1:200) = mean(XX)/100;
+    k0(201) = 0.8;
+    lb = zeros(202,1) - range/100;
+    lb(201:202) = [0., min(YY)*2];
+    ub = zeros(201,1) + range/100;
+    ub(201:202) = [1.,max(YY)*2];
+    kY = simulannealbnd(rfY,k0,lb,ub);
+    figure; plot(t, kY(1:200)*100, 'o')
 
-% Compare the total input RV and with the recovered RV
+    % Model 3 -- only ZZ%
+    rfZ = @(k) sum( (k(201)*XX + (1-k(201))*k(1:200)*100 + k(202) - ZZ).^2 );
+    k0 = zeros(202,1);
+    k0(1:200) = mean(XX)/100;
+    k0(201) = 1.8;
+    lb = zeros(202,1) - range/100;
+    lb(201:202) = [1., min(YY)*2];
+    ub = zeros(201,1) + range/100;
+    ub(201:202) = [5,max(YY)*2];
+    kZ = simulannealbnd(rfZ,k0,lb,ub);
+    figure; plot(t, kY(1:200)*100, 'o')
 
-    % TIME SERIES
-    ax2 = subplot(5,1,3:4); 
-    % 0.8569
-    % 1.9273
-% p_fit1 =
-%     0.2510    0.0250
-% p_fit2 =
-%     0.4504    0.1285    
-%         RV_L        = (YY-0.73*XX)./(1-0.73);
-%         RV_H        = (ZZ-1.33*XX)./(1-1.33);
-        RV_L = (YY-k(1)*XX)/(1-k(1));
-        k2 = (1-k(1))/alpha+1;
-%         RV_H = (ZZ-k(2)*XX)./(1-k(2));
-        RV_H = (ZZ- ((1-k(1))/alpha+1)*XX) / (k(1)-1) * alpha ;
-        hold on
-%         plot(t, jitter'-mean(jitter'), '^')
-%         plot(t, (yyH-yyL)/1000, '<')
-        plot(t, RV_L ,'o')
-        plot(t, RV_H ,'s')
-        hold off
+    % fit curve %
+    fit_sin = @(q) sum( (q(1)*sin(t'/100.*q(2)*2*pi + q(3)) + q(4) - k(1:200)*100).^2 );
+    q0      = [rms(XX), 1., 0., 0.];
+    lb      = [0, 0, -pi, -5 ];
+    ub      = [range, 10, pi, 5];
+    q       = simulannealbnd(fit_sin,q0,lb,ub)
+
+    hold on
+    plot(t, k(1:200)*100, 'o')
+    plot(t, q(1)*sin(t'/100.*q(2)*2*pi + q(3)) + q(4))
+    hold off
+    legend('recovered RV', 'fit')
+
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    rf2 = @(k) sum( 0.1*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
+                  + 0.9*(k(2)*XX - (k(2)-1)* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 );     % objective
+
+    % rf2 = @(k) sum( 0.1*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
+    %               + 0.9*(((1-k(1))/alpha+1)*XX - (k(1)-1)/alpha* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 );     % objective   
+    % Don't use fminunc, fmincon because it finds only the local minimum 
+    % e.g. options = optimoptions(@fminunc,'Algorithm','trust-region');
+    % e.g. problem = createOptimProblem('fmincon','objective',rf2, 'x0',k0);
+
+    % Find minimum of function using simulated annealing algorithm -- proves wroking 
+    XX_range = max(XX)-min(XX);
+    k0 = [0.8, 1.5, 1,          1,      1,          0,      0];                                                
+    lb = [0.0, 1.0, 0,          0,      0,          -Inf,   -Inf];
+    ub = [1.0, 5.0, XX_range,   10,     2*pi,       Inf,    Inf];
+    k = simulannealbnd(rf2,k0,lb,ub)
+    J = (ZZ - k(2)*(k(3)*sin(t'/100.*k(4)*2*pi + k(5))) ) / k(2);
+    J2 = (YY - k(1)*(k(3)*sin(t'/100.*k(4)*2*pi + k(5)))) / k(1);
+    figure; plot(t,J-mean(J), 'o', t, J2, '^', t, (jitter-mean(jitter))*1000, '*')
+    disp(sum( 0.5*(k(1)*XX + (1-k(1))* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(6) - YY).^2 ...
+                  + 0.5*(k(2)*XX - (k(2)-1)* (k(3)*sin(t'/100.*k(4)*2*pi + k(5))) + k(7) - ZZ).^2 ))
+
+    % test XX and YY only (not accurate enough because of converging too slowly)
+    rfY = @(k) sum( (k(1)*XX + (1-k(1))* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - YY).^2 );     % objective
+    XX_range = max(XX)-min(XX);
+    k0 = [0.8, 1,          1,      1,          0];                                                
+    lb = [0.0, 0,          0,      0,          2*min(YY)];
+    ub = [1.0, XX_range,   10,     2*pi,       2*max(YY)];
+    k = simulannealbnd(rfY,k0,lb,ub)
+    disp(sum( (k(1)*XX + (1-k(1))* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - YY).^2 ))
+
+    % test XX and ZZ only 
+    rfZ = @(k) sum( (k(1)*XX - (k(1)-1)* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - ZZ).^2 );     % objective
+    XX_range = max(XX)-min(XX);
+    k0 = [1.5,      1,          1,      1,          0];                                                
+    lb = [1.0,      0,          0,      0,          -Inf];
+    ub = [5.0,      XX_range,  10,     2*pi,       Inf];
+    k = simulannealbnd(rfZ,k0,lb,ub)
+    disp(sum( (k(1)*XX - (k(1)-1)* (k(2)*sin(t'/100.*k(3)*2*pi + k(4))) + k(5) - ZZ).^2 ))
+
+    J = (ZZ - k(1)*(k(2)*sin(t/100.*k(3)*2*pi + k(4))) + k(5))/k(1);
+    plot(t,J, 'o', t, (jitter-jitter(1))*1000, '*')
+
+    % without correction
+    rf = @(k) sum( (k(1)*sin(t'/100.*k(2)*2*pi + k(3)) + k(4) - XX).^2 );     % objective
+    k0 = [1,          1,      1,          0];
+    k = simulannealbnd(rf,k0)
+
+
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%
+    % LINE SHIFT AND JITTER %
+    %%%%%%%%%%%%%%%%%%%%%%%%%
+
+    % Compare the total input RV and with the recovered RV
+
+        % TIME SERIES
+        ax2 = subplot(5,1,3:4); 
+        % 0.8569
+        % 1.9273
+    % p_fit1 =
+    %     0.2510    0.0250
+    % p_fit2 =
+    %     0.4504    0.1285    
+    %         RV_L        = (YY-0.73*XX)./(1-0.73);
+    %         RV_H        = (ZZ-1.33*XX)./(1-1.33);
+            RV_L = (YY-k(1)*XX)/(1-k(1));
+            k2 = (1-k(1))/alpha+1;
+    %         RV_H = (ZZ-k(2)*XX)./(1-k(2));
+            RV_H = (ZZ- ((1-k(1))/alpha+1)*XX) / (k(1)-1) * alpha ;
+            hold on
+    %         plot(t, jitter'-mean(jitter'), '^')
+    %         plot(t, (yyH-yyL)/1000, '<')
+            plot(t, RV_L ,'o')
+            plot(t, RV_H ,'s')
+            hold off
         
-        
+end        
 
 %%%%%%%%%%%%%%%%%%%
 % ONLY LINE SHIFT %
 %%%%%%%%%%%%%%%%%%%
 if 0
+    % ---------
+    % Version 1
+    % ---------
     % Compare with simulated RV % 
     h = figure;
         ax1 =subplot(20,1,1:10);
@@ -637,6 +747,54 @@ if 0
         
         saveas(gcf,'5-LINE_SHIFT_ONLY','png')
     close(h)
+    
+    
+    % ---------
+    % Version 2
+    % ---------
+    h = figure;
+        ax1 =subplot(20,1,1:15);
+        xx = (v_planet_array-v_planet_array(1))*1000;
+        yy1 = (RV_FT-RV_FT(1)) *1000;
+        yy2 = (RV_gauss-RV_gauss(1))'*1000;
+        [fitresult, gof]= createFit(xx, yy1, 1./(0.08^2+RV_FTH_err.^2*0).^2);
+        fitresult
+        hold on 
+        plot(xx, yy1-(mean(yy1)-5), 'ks', 'MarkerSize', 10)
+%         plot(xx, yy2, 'ko', 'MarkerSize', 3, 'MarkerFaceColor', 'black')        
+        scatter(xx, yy2-(mean(yy2)-5), 15, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        p0 = plot(xx, xx, 'k-', 'LineWidth', 3); p0.Color(4)=0.2;
+        hold off
+        ylim([-0.5 10.1])
+        ylabel('Output RV [m/s]')
+%         daspect(ax1,[1 1 1])
+%         set(gca,'xtick',[])
+        set(gca,'xticklabel',[])
+        set(gca,'fontsize',14)
+        legend({'RV_{FT}', 'RV_{Gaussian}', 'Output RV = Input RV'}, 'Location', 'northwest')
+
+        positions = ax1.Position;
+        ax2     = subplot(20,1,16:20);
+        rms_gauss   = rms(yy2-xx - mean(yy1-xx))
+        rms_FT      = rms(yy1-xx - mean(yy1-xx))  
+        hold on 
+%         scatter(xx, yy1-xx- mean(yy1-xx), 'rs', 'MarkerFaceColor', 'none', 'MarkerFaceAlpha', 0.5)
+%         scatter(xx, yy2-xx- mean(yy2-xx), 'bo', 'MarkerFaceColor', 'none', 'MarkerFaceAlpha', 0.5)
+        plot(xx, yy1-xx- mean(yy1-xx), 'ks', 'MarkerSize', 10)
+        scatter(xx, yy2-xx- mean(yy2-xx), 15, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        p0 = plot([min(xx), max(xx)], [0,0], 'k-', 'LineWidth', 3); p0.Color(4)=0.2;
+        hold off
+        ylim([-0.24 0.24])
+        ylabel('Residual [m/s]')
+        set(gca,'xticklabel',[])
+        set(gca,'fontsize',14)
+        
+        xlabel('Input RV [m/s]')    
+        
+        saveas(gcf,'5-LINE_SHIFT_ONLY','png')
+    close(h)
+    
+    
 
     % high-pass and low-pass %
     h = figure;
@@ -651,9 +809,11 @@ if 0
         [fitresult, gof]= createFit(xx, yy2, 1./(0.01^2+RV_FTL_err.^2));
         fitresult        
         hold on 
-        scatter(xx, yy1, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(xx, yy2, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        p0 = plot(xx, xx, 'g--', 'LineWidth', 3); p0.Color(4)=0.5;
+%         scatter(xx, yy1, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+%         scatter(xx, yy2, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy1, 'k+')
+        scatter(xx, yy2, 'kD')
+        p0 = plot(xx, xx, 'k-', 'LineWidth', 3); p0.Color(4)=0.2;
         hold off
         ylim([-0.1 10.1])
 %         title('RV Recovery')
@@ -669,11 +829,11 @@ if 0
         rms1    = rms(yy1-xx - mean(yy1-xx))  
         rms2    = rms(yy2-xx - mean(yy2-xx))
         hold on 
-        scatter(xx, yy1-xx, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-%         errorbar(xx, yy1-xx, RV_FTH_err, 'k.', 'MarkerSize', 0.1)
-        scatter(xx, yy2-xx, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-%         errorbar(xx, yy2-xx, RV_FTL_err, 'k.', 'MarkerSize', 0.1)
-        p0 = plot([min(xx), max(xx)], [0,0], 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
+%         scatter(xx, yy1-xx, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+%         scatter(xx, yy2-xx, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy1-xx, 'k+')
+        scatter(xx, yy2-xx, 'kD')
+        p0 = plot([min(xx), max(xx)], [0,0], 'k-', 'LineWidth', 3); p0.Color(4)=0.2;
         hold off
         ylim([-0.6 0.6])
         xlabel('Input RV [m/s]')
@@ -703,10 +863,12 @@ if 0
             RV_FTH_err = RV_FTH_err(1:100);
         end
         hold on
-        p1 = scatter(xx(1:100), yyL(1:100), 'kD', 'MarkerFaceColor', 'k','MarkerEdgeColor','k', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
-        p1 = scatter(xx(1:100), yyH(1:100), 'k*', 'MarkerFaceColor', 'k','MarkerEdgeColor','k', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
-        p1 = scatter(xx(101:200), yyL(101:200), 'cD', 'MarkerFaceColor', 'c','MarkerEdgeColor','c', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
-        p1 = scatter(xx(101:200), yyH(101:200), 'c*', 'MarkerFaceColor', 'c','MarkerEdgeColor','c', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
+        p1 = scatter(xx(1:100), yyL(1:100), 'kD');
+        p1 = scatter(xx(1:100), yyH(1:100), 'k+');
+%         p1 = scatter(xx(1:100), yyL(1:100), 'kD', 'MarkerFaceColor', 'k','MarkerEdgeColor','k', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
+%         p1 = scatter(xx(1:100), yyH(1:100), 'k*', 'MarkerFaceColor', 'k','MarkerEdgeColor','k', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
+%         p1 = scatter(xx(101:200), yyL(101:200), 'cD', 'MarkerFaceColor', 'c','MarkerEdgeColor','c', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
+%         p1 = scatter(xx(101:200), yyH(101:200), 'c*', 'MarkerFaceColor', 'c','MarkerEdgeColor','c', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
         [fitresult_L, gof]= createFit(xx, yyL, 1./(1+RV_FTL_err*0).^2);
         fitresult_L        
         L1 = fitresult_L.p1;
@@ -717,18 +879,68 @@ if 0
         H1 = fitresult_H.p1;
         H2 = fitresult_H.p2;
         p4 = plot([min(xx), max(xx)], [H1*min(xx)+H2, H1*max(xx)+H2], 'k-', 'LineWidth', 2); p4.Color(4)=0.3;
-        % xlim([-0.9 4.2])
-        ylim([-8 13])
+%         xlim([-0.6 3.9])
+%         ylim([-1.1 6.1])
+        xlim([-35 35])
         xlabel('Jitter (RV_{Gaussian}) [m/s]')
         ylabel('{\Phi}ESTA RV [m/s]')           
         legend({'RV_{FT,L}', 'RV_{FT,H}'}, 'Location', 'northwest')
         hold off
-        set(gca,'fontsize', 18)
-        saveas(gcf,'5-JITTER_ONLY_1_2','png')
+        set(gca,'fontsize', 16)
+        corr(xx',yyL')
+        corr(xx',yyH')
+        title('Correlations in RM process')
+        saveas(gcf,'Jitter_HD189733','png')
+        saveas(gcf,'5-JITTER_ONLY_1_1','png')
     close(h)
     % p_fit =     0.7974   -0.0025 FOR A THREE-SPOT CONFIGRATION (0.8104)
     % p_fit =     0.7736   -0.2375 FOR A TWO-SPOT CONFIGRATION 
 
+    %%%%%%%%%%%%    
+    % HD189733 %
+    %%%%%%%%%%%%
+%     h = figure; 
+%         t_alpha = 0.4;
+%         xx = (RV_gauss - RV_gauss(1))'*1000;
+%         yyL = xx - RV_FTL*1000;
+%         yyH = RV_FTH*1000 - xx;        
+%         hold on
+%         p1 = scatter(xx(1:100), yyL(1:100), 'kD');
+%         p1 = scatter(xx(1:100), yyH(1:100), 'k+');
+% %         p1 = scatter(xx(1:100), yyL(1:100), 'kD', 'MarkerFaceColor', 'k','MarkerEdgeColor','k', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
+% %         p1 = scatter(xx(1:100), yyH(1:100), 'k*', 'MarkerFaceColor', 'k','MarkerEdgeColor','k', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
+% %         p1 = scatter(xx(101:200), yyL(101:200), 'cD', 'MarkerFaceColor', 'c','MarkerEdgeColor','c', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
+% %         p1 = scatter(xx(101:200), yyH(101:200), 'c*', 'MarkerFaceColor', 'c','MarkerEdgeColor','c', 'MarkerFaceAlpha',t_alpha,'MarkerEdgeAlpha',t_alpha);
+%         [fitresult_L, gof]= createFit(xx, yyL, 1./(1+RV_FTL_err*0).^2);
+%         fitresult_L        
+%         L1 = fitresult_L.p1;
+%         L2 = fitresult_L.p2;
+%         p3 = plot([min(xx), max(xx)], [L1*min(xx)+L2, L1*max(xx)+L2], 'k-', 'LineWidth', 2); p3.Color(4)=0.3;
+%         [fitresult_H, gof]= createFit(xx, yyH, 1./(1+RV_FTL_err*0).^2);
+%         fitresult_H        
+%         H1 = fitresult_H.p1;
+%         H2 = fitresult_H.p2;
+%         p4 = plot([min(xx), max(xx)], [H1*min(xx)+H2, H1*max(xx)+H2], 'k-', 'LineWidth', 2); p4.Color(4)=0.3;
+% %         xlim([-0.6 3.9])
+% %         ylim([-1.1 6.1])
+%         xlim([-35 35])
+%         xlabel('Jitter (RV_{Gaussian}) [m/s]')
+%         ylabel('{\Phi}ESTA RV [m/s]')           
+%         legend({'RV_{FT,L}', 'RV_{FT,H}'}, 'Location', 'northwest')
+%         hold off
+%         set(gca,'fontsize', 16)
+%         corr(xx',yyL')
+%         corr(xx',yyH')
+%         title('Correlations in RM process')
+%         saveas(gcf,'Jitter_HD189733','png')
+        
+        
+        
+        
+        
+        
+        
+        
     if 0
         h = figure; 
             plot(xx, xx - yyL, 'o')
@@ -755,8 +967,10 @@ if 0
         yy1 = (RV_FT - mean(RV_FT))'*1000;
         yy2 = (RV_gauss - mean(RV_gauss))*1000;
         hold on 
-        scatter(xx, yy1, 'rs', 'MarkerFaceColor', 'none', 'MarkerFaceAlpha', 0.5);
-        scatter(xx, yy2, 'bo', 'MarkerFaceColor', 'none', 'MarkerFaceAlpha', 0.5);
+        plot(xx, yy1, 'ks', 'MarkerSize', 10)
+        scatter(xx, yy2, 15, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)        
+%         scatter(xx, yy1, 'rs', 'MarkerFaceColor', 'none', 'MarkerFaceAlpha', 0.5);
+%         scatter(xx, yy2, 'bo', 'MarkerFaceColor', 'none', 'MarkerFaceAlpha', 0.5);
         hold off
 %         title('Apparent RV of deformed line profile')
         legend({'RV_{FT}', 'RV_{Gaussian}'}, 'Location', 'northwest')
@@ -766,7 +980,7 @@ if 0
         set(gca,'xticklabel',[])
     ax2 = subplot(20,1,16:20);
         hold on
-        scatter(xx, yy1 - yy2, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(xx, yy1 - yy2, 'k*')
         p0 = plot([min(xx), max(xx)], [0,0], 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
         hold off
         xlabel('Stellar rotation phase')
@@ -813,7 +1027,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Compare the total input RV and with the recovered RV
-if 1
+if 0
     s_len = 2;
     % TIME SERIES
     h = figure; 
@@ -821,10 +1035,11 @@ if 1
         t    = (1:N_FILE)';
         yyL  = RV_FTL' * 1000;
         yyH  = RV_FTH' * 1000;
-        yy2  = (RV_gauss - RV_gauss(1)) * 1000;
+%         yy2  = (RV_gauss - RV_gauss(1)) * 1000;
+        yy2  = (RV_FT - RV_FT(1))' * 1000;
         hold on
-        scatter(t/100, yyL, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
-        scatter(t/100, yyH, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5);
+        scatter(t/100, yyL, 'kD');
+        scatter(t/100, yyH, 'k+');
         scatter(t/100, yy2, 15, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5);
         hold off
 %         title('RV recovery')
@@ -833,7 +1048,7 @@ if 1
 %         legend({'RV_{FT,L}', 'Gaussian'}, 'Location', 'southwest')
         set(gca,'fontsize', 18)
 %         set(gca,'xticklabel',[])
-        ylim([-5 6])
+%         ylim([-5 6])
 %         dlmwrite('RV_IN.txt', yy2)
 %         dlmwrite('RV_FT.txt', yy1)
 
@@ -853,19 +1068,19 @@ if 1
         jitter_model1 = (rv_L-p_fit1(2))/p_fit1(1);
         c = @cmu.colors;
         plot(t/100, xx2, '--', 'color', [0.9100    0.4100    0.1700], 'LineWidth', 3)
-        scatter(t/100, jitter_model1, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t/100, jitter_model1, 'kD')
 
         y_smooth3    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_HL, t_smooth, s_len);
         y_smooth33    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_HL, t, s_len);
         p_fit3 = polyfit(xx2, rv_HL, 1)
         jitter_model3 = (rv_HL-p_fit3(2))/p_fit3(1);
-        scatter(t/100, jitter_model3, 20, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)  
+        scatter(t/100, jitter_model3, 20, 'k^')
         
         y_smooth2    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t_smooth, s_len);
         y_smooth22    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_H, t, s_len);
         p_fit2 = polyfit(xx2, rv_H, 1)
         jitter_model2 = (rv_H-p_fit2(2))/p_fit2(1);
-        scatter(t/100, jitter_model2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t/100, jitter_model2, 20, 'k+')
         
 %         jitter_y_val    = importdata('jitter_y_val.txt');
 %         p_fit4 = polyfit(xx2, jitter_y_val, 1)
@@ -880,17 +1095,17 @@ if 1
         plot3.Color(4) = 0.2;        
 %             pbaspect(ax2,[5 1 1])
         hold off
-        ylabel('Modelled jitter [m/s]')
+        ylabel('Jitter [m/s]')
         ylim([-5 6])
-        legend({'Input jitter', 'w_1=1', 'w_1=0.5', 'w_1=0'}, 'Location', 'north')
+        legend({'Input jitter', 'Model (w_1=1)', 'Model (w_1=0.5)', 'Model (w_1=0)'}, 'Location', 'north')
         set(gca,'fontsize', 18)
 %         set(gca,'xticklabel',[])
 
     ax3 = subplot(3,1,3);
         hold on 
-        scatter(t/100, jitter_model1 - xx2, 15, 'kD', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(t/100, jitter_model2 - xx2, 20, 'k*', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
-        scatter(t/100, jitter_model3 - xx2, 15, 'ks', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+        scatter(t/100, jitter_model1 - xx2, 'kD')
+        scatter(t/100, jitter_model2 - xx2, 'k+')
+        scatter(t/100, jitter_model3 - xx2, 'k^')
         plot1 = plot(t/100, (y_smooth11-p_fit1(2))/p_fit1(1) - xx2, 'k', 'LineWidth', 2);
         plot1.Color(4) = 0.2; 
         plot2 = plot(t/100, (y_smooth22-p_fit2(2))/p_fit2(1) - xx2, 'k', 'LineWidth', 2);
@@ -946,6 +1161,12 @@ if 1
         % p_fit =    0.2259    0.2377 FOR A TWO-SPOT CONFIGRATION
     end
 end
+
+
+
+
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
