@@ -6,10 +6,10 @@
 % Parameters %
 %%%%%%%%%%%%%%
 K           = 0;
-% SN          = 10000;  
-SN          = 2000;
-% N_FILE      = 100;
-N_FILE      = 200;
+SN          = 10000;  
+% SN          = 2000;
+N_FILE      = 100;
+% N_FILE      = 200;
 % N_FILE      = 400;
 t           = 1:N_FILE;
 grid_size   = 0.1;
@@ -18,15 +18,15 @@ v0          = (-20 : grid_size : 20)';          % km/s
 % dir1        = '/run/user/1000/gvfs/sftp:host=durufle.phys.unsw.edu.au,user=jzhao/Volumes/DataSSD/SOAP_2/outputs/02.01/';
 % dir2        = '/run/user/1000/gvfs/sftp:host=durufle.phys.unsw.edu.au,user=jzhao/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 
-% dir1        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/';
-% dir2        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/CCF_dat/';
-dir1        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/';
-dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
+dir1        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/';
+dir2        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/CCF_dat/';
+% dir1        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/';
+% dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
-% jitter      = jitter';
-jitter      = [jitter', jitter'];
+jitter      = jitter';
+% jitter      = [jitter', jitter'];
 % jitter      = [jitter', jitter', jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
@@ -61,8 +61,8 @@ size1       = length(bb);
 FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
-% v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-v_planet_array  = K * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+v_planet_array  = linspace(0,10,N_FILE) / 1000.;
+% v_planet_array  = K * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -79,8 +79,9 @@ if 0
     set(gca,'fontsize', 16)
     xlabel('Phase')
     ylabel('"Jitter" [m/s]')
-    title('RM effect of an infinitely dark spot')
+    title('Simulated RM velocity anomaly')
     hold off 
+    set(gca,'fontsize', 20)
     saveas(gcf,'Rossiter-McLaughlin_RV','png')
 
     % construct a master template
@@ -107,29 +108,30 @@ if 0
         A_spline    = spline(v0, A, v1);
     %     A_spline    = spline(v0, A, v1+(jitter(n)-jitter(1)));
         if jitter(n) == 0
-            plot(v1, A_spline - A_tpl, 'k-')
-    %         plot(v1, A_spline, 'k-')
+%             plot(v1, A_spline - A_tpl, 'k-')
+            plot(v1, A_spline, 'k-')
         end
         if jitter(n) > 0
-            plot(v1, A_spline - A_tpl, 'b-')
-    %         plot(v1, A_spline, 'b-')
+%             plot(v1, A_spline - A_tpl, 'b-')
+            plot(v1, A_spline, 'b-')
         end
         if jitter(n) < 0
-            plot(v1, A_spline - A_tpl, 'r-')
-    %         plot(v1, A_spline, 'r-')
+%             plot(v1, A_spline - A_tpl, 'r-')
+            plot(v1, A_spline, 'r-')
         end    
     end    
     set(gca,'fontsize', 20)
-    xlabel('km/s')
+    xlabel('Velocity [km/s]')
     ytickformat('%.3g')
     ylabel('Normalized intensity')
-    % title({'Line profile of RM effect'})
-    title({'Residual line profile', 'of RM effect'})
+    title({'Line profile of simulated RM effect'})
+%     title({'Residual line profile', 'of simulated RM effect'})
     % title({'Centred residual line profile', 'of RM effect'})
-    ylim([-0.004 0.004])
+%     ylim([-0.004 0.004])
+    set(gca,'fontsize', 20)
     %ylim([-0.0005 0.0005])
     saveas(gcf,'Line_profile_RM','png')
-    % saveas(gcf,'Residual_line_profile_RM','png')
+%     saveas(gcf,'Residual_line_profile_RM','png')
     % saveas(gcf,'Apparent_residual_line_profile_RM','png')
 end
 
@@ -141,15 +143,15 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n);
+    v_planet    = v_planet_array(n) * 0;
     filename    = [dir2, 'CCF', num2str(mod(n-1,100)), '.dat'];
-%     filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
 %     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
     A_spline    = spline(v0, A, v1-v_planet);
     % Plot the one without noise
     if mod(n,10) == 1
-        plot(v1, A_spline - A1, 'k')
+%         plot(v1, A_spline - A1, 'k')
+        plot(v1, A_spline, 'k')
     end    
     % add noise
     A_spline    = A_spline + normrnd(0, (1-A_spline).^0.5/SN);  
@@ -163,7 +165,7 @@ for n = 1:N_FILE
     
 %     A_spline    = A_spline .* window;
     % NEW %
-    if K ==10
+    if K == 10
         A_spline    = spline(v1, A_spline, v1+f.b);
     end
     [FFT_frequency, FFT_power(:, n), Y(:, n)] = FUNCTION_FFT(A_spline, Fs);
@@ -171,20 +173,20 @@ for n = 1:N_FILE
 end     
 hold off
 % title('Stacked cross correlation function')
-ylim([-1.3/1000 1.3/1000])
+% ylim([-1.2/1000 1.2/1000])
 set(gca,'fontsize',20)
-xlabel('km/s')
+xlabel('Velocity [km/s]')
 ylabel('Normalized intensity')
 % saveas(gcf,'1-Line_Profile','png')
 % saveas(gcf,'SLPD1-Differential_line_Profile','png')
 % saveas(gcf,'1-Differential_line_Profile','png')
-% saveas(gcf,'LPD1-Line_Profile','png')
+saveas(gcf,'LPD1-Line_Profile','png')
 % saveas(gcf,'LPD1-Differential_line_Profile','png')
 close(h)
 
 % Determine the midpoint the equally divides the power spectrum %
-% cutoff_power= max(max(FFT_power)) * 0.0001; % used for publication for demonstration purpose
-cutoff_power= max(max(FFT_power)) * 0.0005;
+cutoff_power= max(max(FFT_power)) * 0.0001; % used for publication for demonstration purpose
+% cutoff_power= max(max(FFT_power)) * 0.0005;
 % cutoff_power= max(max(FFT_power)) * 0.000005;
 f_max       = max(FFT_frequency(FFT_power(:,1) > cutoff_power));
 n           = abs(FFT_frequency) <= f_max;
@@ -201,38 +203,6 @@ if 1
     end
     f_HL = FFT_frequency(size(FFT_power,1)/2+1+i);
 end
-%%%%%%%%%%%%%%%%%%%%%%%%%%
-% multi-star version:
-if 0
-    cum = 0;
-    for i = 0:fix(sum(n)/2)
-        cum = cum + FFT_power(size(FFT_power,1)/2+i,1);
-        if cum > power_sum/2
-            break
-        end
-    end
-    f_HL = FFT_frequency(size(FFT_power,1)/2+i);
-end 
-%%%%%%%%%%%%%%%%%%%%%%%%%%
-if 0
-    cum = 0;
-    for i = 1:fix(sum(n)/2)
-        cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
-        if cum > power_sum/2 * 1/3
-            break
-        end
-    end
-    f_H = FFT_frequency(size(FFT_power,1)/2+1+i);
-    %%%%%%%%%%%%%%%%%%%%%%%%%%
-    cum = 0;
-    for i = 1:fix(sum(n)/2)
-        cum = cum + FFT_power(size(FFT_power,1)/2+1+i,1);
-        if cum > power_sum/2 * 2/3
-            break
-        end
-    end
-    f_L = FFT_frequency(size(FFT_power,1)/2+1+i);
-end    
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 % old version %
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -299,7 +269,8 @@ if 1
     ylabel('Power')   
     xlim([-0.199 0.199])
     set(gca,'fontsize',20)
-    saveas(gcf,'2-FT_power','png')
+    saveas(gcf,'LPD2-FT_power','png')
+%     saveas(gcf,'2-FT_power','png')
     close(h)
 end
 
@@ -376,7 +347,7 @@ for i = 1:N_FILE
     end
 end
 % ymax = 0.0159;
-ymax = 0.013;
+ymax = 0.009;
 plot([-f_max, -f_max], [-ymax, ymax], '--', 'Color', grey)
 plot([f_max, f_max], [-ymax, ymax], '--', 'Color', grey)
 plot([-f_HL, -f_HL], [-ymax, ymax], '--', 'Color', grey)
@@ -389,11 +360,11 @@ text((f_max+0.2)/2, 0, '\oslash', 'FontSize', 20, 'HorizontalAlignment','center'
 text(-(f_max+0.2)/2, 0, '\oslash', 'FontSize', 20, 'HorizontalAlignment','center')
 hold off
 set(gca,'fontsize',20)
-% ylim([-ymax ymax])
+ylim([-ymax ymax])
 xlim([-0.199 0.199])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
-saveas(gcf,'4-Relative_phase_angle','png')
+% saveas(gcf,'4-Relative_phase_angle','png')
 % saveas(gcf,'LPD4-Relative_phase_angle','png')
 % saveas(gcf,'SLPD4-Relative_phase_angle','png')
 close(h)
@@ -437,7 +408,7 @@ xlim([0 f_HL])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
 title('Low-pass')
-saveas(gcf,'4-Relative_phase_angle_L','png')
+% saveas(gcf,'4-Relative_phase_angle_L','png')
 % saveas(gcf,'LPD4-Relative_phase_angle_L','png')
 % saveas(gcf,'SLPD4-Relative_phase_angle_L','png')
 close(h)
@@ -470,7 +441,7 @@ xlim([f_HL f_max])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
 title('High-pass')
-saveas(gcf,'4-Relative_phase_angle_H','png')
+% saveas(gcf,'4-Relative_phase_angle_H','png')
 % saveas(gcf,'LPD4-Relative_phase_angle_H','png')
 % saveas(gcf,'SLPD4-Relative_phase_angle_H','png')
 close(h)
@@ -770,11 +741,11 @@ if 0
 %         daspect(ax1,[1 1 1])
 %         set(gca,'xtick',[])
         set(gca,'xticklabel',[])
-        set(gca,'fontsize',14)
+        set(gca,'fontsize',20)
         legend({'RV_{FT}', 'RV_{Gaussian}', 'Output RV = Input RV'}, 'Location', 'northwest')
 
         positions = ax1.Position;
-        ax2     = subplot(20,1,16:20);
+        ax2     = subplot(20,1,16:19);
         rms_gauss   = rms(yy2-xx - mean(yy1-xx))
         rms_FT      = rms(yy1-xx - mean(yy1-xx))  
         hold on 
@@ -786,8 +757,7 @@ if 0
         hold off
         ylim([-0.24 0.24])
         ylabel('Residual [m/s]')
-        set(gca,'xticklabel',[])
-        set(gca,'fontsize',14)
+        set(gca,'fontsize',20)
         
         xlabel('Input RV [m/s]')    
         
@@ -821,11 +791,11 @@ if 0
 %         daspect(ax1,[1 1 1])
 %         set(gca,'xtick',[])
         set(gca,'xticklabel',[])
-        set(gca,'fontsize',14)
+        set(gca,'fontsize',20)
         legend({'RV_{FT,H}', 'RV_{FT,L}', 'Output RV = Input RV'}, 'Location', 'northwest')
 
         positions = ax1.Position;
-        ax2     = subplot(20,1,16:20);
+        ax2     = subplot(20,1,16:19);
         rms1    = rms(yy1-xx - mean(yy1-xx))  
         rms2    = rms(yy2-xx - mean(yy2-xx))
         hold on 
@@ -838,7 +808,7 @@ if 0
         ylim([-0.6 0.6])
         xlabel('Input RV [m/s]')
         ylabel('Residual [m/s]')
-        set(gca,'fontsize',14)
+        set(gca,'fontsize',20)
         saveas(gcf,'5-LINE_SHIFT_ONLY-HL','png')
     close(h)    
     
@@ -880,18 +850,18 @@ if 0
         H2 = fitresult_H.p2;
         p4 = plot([min(xx), max(xx)], [H1*min(xx)+H2, H1*max(xx)+H2], 'k-', 'LineWidth', 2); p4.Color(4)=0.3;
 %         xlim([-0.6 3.9])
-%         ylim([-1.1 6.1])
+%         ylim([-1.3 6.1])
         xlim([-35 35])
         xlabel('Jitter (RV_{Gaussian}) [m/s]')
         ylabel('{\Phi}ESTA RV [m/s]')           
         legend({'RV_{FT,L}', 'RV_{FT,H}'}, 'Location', 'northwest')
         hold off
-        set(gca,'fontsize', 16)
+        set(gca,'fontsize', 20)
         corr(xx',yyL')
         corr(xx',yyH')
         title('Correlations in RM process')
         saveas(gcf,'Jitter_HD189733','png')
-        saveas(gcf,'5-JITTER_ONLY_1_1','png')
+%         saveas(gcf,'5-JITTER_ONLY_1_1','png')
     close(h)
     % p_fit =     0.7974   -0.0025 FOR A THREE-SPOT CONFIGRATION (0.8104)
     % p_fit =     0.7736   -0.2375 FOR A TWO-SPOT CONFIGRATION 
@@ -968,7 +938,7 @@ if 0
         yy2 = (RV_gauss - mean(RV_gauss))*1000;
         hold on 
         plot(xx, yy1, 'ks', 'MarkerSize', 10)
-        scatter(xx, yy2, 15, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)        
+        scatter(xx, yy2, 18, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)        
 %         scatter(xx, yy1, 'rs', 'MarkerFaceColor', 'none', 'MarkerFaceAlpha', 0.5);
 %         scatter(xx, yy2, 'bo', 'MarkerFaceColor', 'none', 'MarkerFaceAlpha', 0.5);
         hold off
@@ -976,9 +946,9 @@ if 0
         legend({'RV_{FT}', 'RV_{Gaussian}'}, 'Location', 'northwest')
         ylabel('RV [m/s]')
         ylim([-2.5 2.5])
-        set(gca,'fontsize',15)
+        set(gca,'fontsize',18)
         set(gca,'xticklabel',[])
-    ax2 = subplot(20,1,16:20);
+    ax2 = subplot(20,1,16:19);
         hold on
         scatter(xx, yy1 - yy2, 'k*')
         p0 = plot([min(xx), max(xx)], [0,0], 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
@@ -986,7 +956,7 @@ if 0
         xlabel('Stellar rotation phase')
         ylabel('\Delta RV [m/s]')
         ylim([-0.0149 0.0149])
-        set(gca,'fontsize',15)
+        set(gca,'fontsize',18)
     saveas(gcf,'5-JITTER_ONLY_3','png')
     close(h)
     
