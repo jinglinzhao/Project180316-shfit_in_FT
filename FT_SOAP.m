@@ -5,7 +5,7 @@
 %%%%%%%%%%%%%%
 % Parameters %
 %%%%%%%%%%%%%%
-K           = 0;
+K           = 2;
 SN          = 10000;  
 % SN          = 2000;
 N_FILE      = 100;
@@ -18,15 +18,15 @@ v0          = (-20 : grid_size : 20)';          % km/s
 % dir1        = '/run/user/1000/gvfs/sftp:host=durufle.phys.unsw.edu.au,user=jzhao/Volumes/DataSSD/SOAP_2/outputs/02.01/';
 % dir2        = '/run/user/1000/gvfs/sftp:host=durufle.phys.unsw.edu.au,user=jzhao/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 
-dir1        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/';
-dir2        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/CCF_dat/';
-% dir1        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/';
-% dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
+% dir1        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/';
+% dir2        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/CCF_dat/';
+dir1        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/';
+dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
-jitter      = jitter';
-% jitter      = [jitter', jitter'];
+% jitter      = jitter';
+jitter      = [jitter', jitter'];
 % jitter      = [jitter', jitter', jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
@@ -61,8 +61,8 @@ size1       = length(bb);
 FFT_power   = zeros(size1, N_FILE);
 Y           = zeros(size1, N_FILE);
 RV_noise    = zeros(1,N_FILE);
-v_planet_array  = linspace(0,10,N_FILE) / 1000.;
-% v_planet_array  = K * sin(t/100*0.7*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
+% v_planet_array  = linspace(0,10,N_FILE) / 1000.;
+v_planet_array  = K * sin(t/100*4.5*2*pi + 1) * 0.001;     % comment this out if not tesitng "planet + jitter"
 RV_gauss        = zeros(N_FILE,1);
 
 
@@ -79,6 +79,7 @@ if 0
     set(gca,'fontsize', 16)
     xlabel('Phase')
     ylabel('"Jitter" [m/s]')
+    ylim([-35 35])
     title('Simulated RM velocity anomaly')
     hold off 
     set(gca,'fontsize', 20)
@@ -97,26 +98,22 @@ if 0
     A_tpl = A_tpl / N_FILE;
     plot(v1, A_tpl)
 
-
-    % residual 
+    %%%%%%%%%%%%%%%%
+    % Line profile %
+    %%%%%%%%%%%%%%%%
     h = figure;
     hold on
     for n = 1:N_FILE
-
         filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
         A           = 1 - importdata(filename);
         A_spline    = spline(v0, A, v1);
-    %     A_spline    = spline(v0, A, v1+(jitter(n)-jitter(1)));
         if jitter(n) == 0
-%             plot(v1, A_spline - A_tpl, 'k-')
             plot(v1, A_spline, 'k-')
         end
         if jitter(n) > 0
-%             plot(v1, A_spline - A_tpl, 'b-')
             plot(v1, A_spline, 'b-')
         end
         if jitter(n) < 0
-%             plot(v1, A_spline - A_tpl, 'r-')
             plot(v1, A_spline, 'r-')
         end    
     end    
@@ -124,15 +121,66 @@ if 0
     xlabel('Velocity [km/s]')
     ytickformat('%.3g')
     ylabel('Normalized intensity')
-    title({'Line profile of simulated RM effect'})
-%     title({'Residual line profile', 'of simulated RM effect'})
-    % title({'Centred residual line profile', 'of RM effect'})
-%     ylim([-0.004 0.004])
+    title({'Line profiles of simulated RM effect'})
     set(gca,'fontsize', 20)
-    %ylim([-0.0005 0.0005])
     saveas(gcf,'Line_profile_RM','png')
-%     saveas(gcf,'Residual_line_profile_RM','png')
-    % saveas(gcf,'Apparent_residual_line_profile_RM','png')
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%
+    % Residual line profile %
+    %%%%%%%%%%%%%%%%%%%%%%%%%    
+    h = figure;
+    hold on
+    for n = 1:N_FILE
+        filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
+        A           = 1 - importdata(filename);
+        A_spline    = spline(v0, A, v1);
+        if jitter(n) == 0
+            plot(v1, A_spline - A_tpl, 'k-')
+        end
+        if jitter(n) > 0
+            plot(v1, A_spline - A_tpl, 'b-')
+        end
+        if jitter(n) < 0
+            plot(v1, A_spline - A_tpl, 'r-')
+        end    
+    end    
+    set(gca,'fontsize', 20)
+    xlabel('Velocity [km/s]')
+    ytickformat('%.3g')
+    ylabel('Normalized intensity')
+    title({'Residual line profiles', 'of simulated RM effect'})
+    ylim([-0.0035 0.0035])
+    set(gca,'fontsize', 20)
+    saveas(gcf,'Residual_line_profile_RM','png')
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Centred residual line profile %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    h = figure;
+    hold on
+    for n = 1:N_FILE
+        filename    = [dir2, 'CCF', num2str(n-1), '.dat'];
+        A           = 1 - importdata(filename);
+        A_spline    = spline(v0, A, v1+(jitter(n)-jitter(1)));
+        if jitter(n) == 0
+            plot(v1, A_spline - A_tpl, 'k-')
+        end
+        if jitter(n) > 0
+            plot(v1, A_spline - A_tpl, 'b-')
+        end
+        if jitter(n) < 0
+            plot(v1, A_spline - A_tpl, 'r-')
+        end    
+    end    
+    set(gca,'fontsize', 20)
+    xlabel('Velocity [km/s]')
+    ytickformat('%.3g')
+    ylabel('Normalized intensity')
+    title({'Centred residual line profiles', 'of simulated RM effect'})
+    ylim([-0.0035 0.0035])
+    set(gca,'fontsize', 20)
+    saveas(gcf,'Apparent_residual_line_profile_RM','png')    
 end
 
 
@@ -177,15 +225,16 @@ hold off
 set(gca,'fontsize',20)
 xlabel('Velocity [km/s]')
 ylabel('Normalized intensity')
-% saveas(gcf,'1-Line_Profile','png')
+saveas(gcf,'1-Line_Profile','png')
 % saveas(gcf,'SLPD1-Differential_line_Profile','png')
 % saveas(gcf,'1-Differential_line_Profile','png')
-saveas(gcf,'LPD1-Line_Profile','png')
+% saveas(gcf,'LPD1-Line_Profile','png')
 % saveas(gcf,'LPD1-Differential_line_Profile','png')
 close(h)
 
 % Determine the midpoint the equally divides the power spectrum %
 cutoff_power= max(max(FFT_power)) * 0.0001; % used for publication for demonstration purpose
+% cutoff_power= max(max(FFT_power)) * 0.001;
 % cutoff_power= max(max(FFT_power)) * 0.0005;
 % cutoff_power= max(max(FFT_power)) * 0.000005;
 f_max       = max(FFT_frequency(FFT_power(:,1) > cutoff_power));
@@ -269,8 +318,8 @@ if 1
     ylabel('Power')   
     xlim([-0.199 0.199])
     set(gca,'fontsize',20)
-    saveas(gcf,'LPD2-FT_power','png')
-%     saveas(gcf,'2-FT_power','png')
+%     saveas(gcf,'LPD2-FT_power','png')
+    saveas(gcf,'2-FT_power','png')
     close(h)
 end
 
@@ -316,6 +365,22 @@ if 0
 %     close(h)
 end
 
+% Y0: noise free;
+% Y1: S/N = 10,000;
+if 0
+    idx2 = (FFT_frequency < 0.152) & (FFT_frequency > 0.151);
+    P1x = FFT_frequency(idx2);
+    P1_err = rms(angle(Y1(idx2, :)) - angle(Y0(idx2,:)));
+
+    idx2 = (FFT_frequency < 0.103) & (FFT_frequency > 0.098);
+    P2x = FFT_frequency(idx2);
+    P2_err = rms(angle(Y1(idx2, :)) - angle(Y0(idx2,:)));
+
+    idx2 = (FFT_frequency < 0.127) & (FFT_frequency > 0.123);
+    P3x = FFT_frequency(idx2);
+    P3_err = rms(angle(Y1(idx2, :)) - angle(Y0(idx2,:)));
+end
+
 
 %%%%%%%%%%%%%%%%%%%%%
 % Phase angle -> RV %
@@ -332,6 +397,20 @@ for i = 1:N_FILE
     yy  = angle(Y(n, i)) - angle(Y(n, 1));
     if mod(i,10) == 1
         plot(xx, yy, 'k-')
+    end   
+    if 0
+        if mod(i,20) == 1
+            plot(xx, yy, 'k-')
+            errorbar(P1x, yy(xx==P1x), P1_err, 'k.', 'MarkerSize', 5, 'LineWidth', 1)
+            errorbar(P2x, yy(xx==P2x), P2_err, 'k.', 'MarkerSize', 5, 'LineWidth', 1)
+            errorbar(P3x, yy(xx==P3x), P3_err, 'k.', 'MarkerSize', 5, 'LineWidth', 1)
+        end
+        if mod(i,20) == 11
+            plot(xx, yy, 'k-')
+            errorbar(-P1x, -yy(xx==P1x), P1_err, 'k.', 'MarkerSize', 5, 'LineWidth', 1)
+            errorbar(-P2x, -yy(xx==P2x), P2_err, 'k.', 'MarkerSize', 5, 'LineWidth', 1)
+            errorbar(-P3x, -yy(xx==P3x), P3_err, 'k.', 'MarkerSize', 5, 'LineWidth', 1)
+        end    
     end
     % Phase angle -> RV
     weight          = FFT_power(n,i)';
@@ -346,8 +425,10 @@ for i = 1:N_FILE
         wegihted_velocity(i) = sum(velocity .* weight(idx_no0)) ./ sum(weight(idx_no0)) * 1000;
     end
 end
+hold on 
 % ymax = 0.0159;
-ymax = 0.009;
+% ymax = 0.009;
+ymax = 0.011;
 plot([-f_max, -f_max], [-ymax, ymax], '--', 'Color', grey)
 plot([f_max, f_max], [-ymax, ymax], '--', 'Color', grey)
 plot([-f_HL, -f_HL], [-ymax, ymax], '--', 'Color', grey)
@@ -849,19 +930,20 @@ if 0
         H1 = fitresult_H.p1;
         H2 = fitresult_H.p2;
         p4 = plot([min(xx), max(xx)], [H1*min(xx)+H2, H1*max(xx)+H2], 'k-', 'LineWidth', 2); p4.Color(4)=0.3;
-%         xlim([-0.6 3.9])
-%         ylim([-1.3 6.1])
-        xlim([-35 35])
+        xlim([-0.3 4.05])
+        ylim([-1.3 6.1])
+%         xlim([-35 35])
+%         xlabel('"Jitter" [m/s]')
         xlabel('Jitter (RV_{Gaussian}) [m/s]')
         ylabel('{\Phi}ESTA RV [m/s]')           
         legend({'RV_{FT,L}', 'RV_{FT,H}'}, 'Location', 'northwest')
         hold off
-        set(gca,'fontsize', 20)
+        set(gca,'fontsize', 18)
         corr(xx',yyL')
         corr(xx',yyH')
-        title('Correlations in RM process')
-        saveas(gcf,'Jitter_HD189733','png')
-%         saveas(gcf,'5-JITTER_ONLY_1_1','png')
+%         title('Correlations in RM process')
+%         saveas(gcf,'Jitter_HD189733','png')
+        saveas(gcf,'5-JITTER_ONLY_1_1','png')
     close(h)
     % p_fit =     0.7974   -0.0025 FOR A THREE-SPOT CONFIGRATION (0.8104)
     % p_fit =     0.7736   -0.2375 FOR A TWO-SPOT CONFIGRATION 
@@ -989,7 +1071,43 @@ if 0
         set(gca,'fontsize',15)
     saveas(gcf,'5-JITTER_ONLY_4','png')    
     close(h)    
+    
+    % TIME SERIES 3 
+    h = figure;
+    ax1 = subplot(20,1,1:15);
+        yy2 = (RV_FT - RV_FT(1))*1000;
+        yy1 = (RV_gauss - RV_gauss(1))'*1000;
+        hold on 
+        scatter(yy1, yy2, 18, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)        
+        [fitresult, gof]= createFit(yy1, yy2, 1./(1+RV_FTL_err*0).^2);
+        hold off
+        ylabel('RV_{FT} [m/s]')
+        ylim([-0.2 4.05])
+        xlim([-0.2 4.05])
+        set(gca,'fontsize',18)
+        set(gca,'xticklabel',[])
+    ax2 = subplot(20,1,16:19);
+        hold on
+        scatter(yy1, yy1 - yy2, 18, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
+%         p0 = plot([min(xx), max(xx)], [0,0], 'k--', 'LineWidth', 3); p0.Color(4)=0.3;
+        hold off
+        xlabel('Jitter (RV_{Gaussian}) [m/s]')
+        ylabel('Residual [m/s]')
+        ylim([-0.0149 0.0149])
+        xlim([-0.2 4.05])
+        set(gca,'fontsize',18)
+    saveas(gcf,'5-JITTER_ONLY_5','png')    
+    close(h)        
+    
+    
+    
+    
+    
+    
+    
 end
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1012,18 +1130,12 @@ if 0
         scatter(t/100, yyH, 'k+');
         scatter(t/100, yy2, 15, 'bo', 'MarkerFaceColor', 'b', 'MarkerFaceAlpha', 0.5);
         hold off
-%         title('RV recovery')
         ylabel('RV [m/s]')    
         legend({'RV_{FT,L}', 'RV_{FT,H}', 'RV_{Gaussian}'}, 'Location', 'north')
-%         legend({'RV_{FT,L}', 'Gaussian'}, 'Location', 'southwest')
-        set(gca,'fontsize', 18)
+        set(gca,'fontsize', 20)
 %         set(gca,'xticklabel',[])
-%         ylim([-5 6])
-%         dlmwrite('RV_IN.txt', yy2)
-%         dlmwrite('RV_FT.txt', yy1)
+        ylim([-5 6])
 
-        %     rv_g1 = sgolayfilt(rv_d,2,21);
-        %     rv_g1 = sgolayfilt(rv_g1,2,11);
     ax2 = subplot(3,1,2); 
         rv_L        = yy2 - yyL;
         rv_H        = yyH - yy2;
@@ -1068,7 +1180,7 @@ if 0
         ylabel('Jitter [m/s]')
         ylim([-5 6])
         legend({'Input jitter', 'Model (w_1=1)', 'Model (w_1=0.5)', 'Model (w_1=0)'}, 'Location', 'north')
-        set(gca,'fontsize', 18)
+        set(gca,'fontsize', 20)
 %         set(gca,'xticklabel',[])
 
     ax3 = subplot(3,1,3);
@@ -1086,7 +1198,7 @@ if 0
         ylim([-5 6])
         xlabel('Stellar rotation phase')
         ylabel('Residual [m/s]')
-        set(gca,'fontsize', 18)
+        set(gca,'fontsize', 20)
         saveas(gcf,'5-PLANET_AND_JITTER2','png')
 
         rms(xx2 - mean(xx2))    %1.2242
