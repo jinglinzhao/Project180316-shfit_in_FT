@@ -6,10 +6,10 @@
 % Parameters %
 %%%%%%%%%%%%%%
 K           = 2;
-SN          = 10000;  
-% SN          = 2000;
+% SN          = 10000;  
+% SN          = 5000;
 N_FILE      = 100;
-% N_FILE      = 200;
+% N_FILE      = 10000;
 % N_FILE      = 400;
 t           = 1:N_FILE;
 grid_size   = 0.1;
@@ -20,14 +20,26 @@ v0          = (-20 : grid_size : 20)';          % km/s
 
 % dir1        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/';
 % dir2        = '/Volumes/DataSSD/SOAP_2/outputs/HD189733/CCF_dat/';
+% dir1        = '/Volumes/DataSSD/SOAP_2/outputs/02.01-plage/';
+% dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01-plage/CCF_dat/';
 dir1        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/';
 dir2        = '/Volumes/DataSSD/SOAP_2/outputs/02.01/CCF_dat/';
 % dir1      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/';
 % dir2      = '/Volumes/DataSSD/SOAP_2/outputs/HERMIT_2spot/fits/CCF_dat/';
+% dir1        = '/Volumes/DataSSD/SOAP_2/outputs/0920-plage4/';
+% dir2        = '/Volumes/DataSSD/SOAP_2/outputs/0920-plage4/CCF_dat/';
+% dir1        = '/Volumes/DataSSD/SOAP_2/outputs/0920-spot4/';
+% dir2        = '/Volumes/DataSSD/SOAP_2/outputs/0920-spot4/CCF_dat/';
+
+
 jitter      = importdata([dir1, 'RV.dat']) / 1000;      % activity induced RV [km/s]
-% jitter      = jitter';
-jitter      = [jitter', jitter'];
-% jitter      = [jitter', jitter', jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
+if N_FILE == 100
+    jitter      = jitter';
+elseif N_FILE == 200
+    jitter      = [jitter', jitter'];
+elseif N_FILE == 400
+    jitter      = [jitter', jitter', jitter', jitter'];               % comment this out if not tesitng "planet + jitter"
+end
 idx         = (v0 >= -10) & (v0 <= 10);
 v1          = v0(idx);
 
@@ -191,18 +203,25 @@ h = figure;
 hold on
 for n = 1:N_FILE
 
-    v_planet    = v_planet_array(n) * 0;
+    v_planet    = v_planet_array(n)*0;
     filename    = [dir2, 'CCF', num2str(mod(n-1,100)), '.dat'];
 %     filename    = [dir2, 'CCF', num2str(1), '.dat'];        % choose the same line profile and shift it 
     A           = 1 - importdata(filename);
-    A_spline    = spline(v0, A, v1-v_planet);
+%     A_spline    = spline(v0, A, v1-v_planet);
+
+%     A_noise     = A + normrnd(0, (1-A).^0.5/SN); 
+    A_noise = A;
+    A_spline = spline(v0, A_noise, v1-v_planet);  
+    A_noise = 1 - A_noise;
     % Plot the one without noise
     if mod(n,10) == 1
 %         plot(v1, A_spline - A1, 'k')
         plot(v1, A_spline, 'k')
     end    
     % add noise
-    A_spline    = A_spline + normrnd(0, (1-A_spline).^0.5/SN);  
+%     A_spline    = A_spline + normrnd(0, (1-A_spline).^0.5/SN); 
+
+%     dlmwrite([dir1, '/CCF_dat_SN=10000/CCF', num2str(n-1), '.dat'], A_noise)
     
     % obtain line centroid 
     idx_fit     = (v1 >= -9) & (v1 <= 9);
@@ -233,9 +252,9 @@ saveas(gcf,'1-Line_Profile','png')
 close(h)
 
 % Determine the midpoint the equally divides the power spectrum %
-cutoff_power= max(max(FFT_power)) * 0.0001; % used for publication for demonstration purpose
+% cutoff_power= max(max(FFT_power)) * 0.0001; % used for publication for demonstration purpose
 % cutoff_power= max(max(FFT_power)) * 0.001;
-% cutoff_power= max(max(FFT_power)) * 0.0005;
+cutoff_power= max(max(FFT_power)) * 0.0005;
 % cutoff_power= max(max(FFT_power)) * 0.000005;
 f_max       = max(FFT_frequency(FFT_power(:,1) > cutoff_power));
 n           = abs(FFT_frequency) <= f_max;
@@ -251,7 +270,9 @@ if 1
         end
     end
     f_HL = FFT_frequency(size(FFT_power,1)/2+1+i);
+%     f_HL = 0.5 * f_max;
 end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 % old version %
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -328,11 +349,11 @@ end
 % Phase angle %
 %%%%%%%%%%%%%%%
 h = figure;
-plot(FFT_frequency, unwrap(angle(Y(:, 51))), '.')
+plot(FFT_frequency, unwrap(angle(Y(:, 100))), '.')
 title('Phase angle (Rotation phase = 0.51)')
 xlabel('FT frequency (1 / velocity in wavelength)')
 ylabel('Phase angle [radian]')
-xlim([-0.15 0.15])
+% xlim([-0.15 0.15])
 saveas(gcf,'3-Phase_angle','png')
 close(h)
 
@@ -441,14 +462,14 @@ text((f_max+0.2)/2, 0, '\oslash', 'FontSize', 20, 'HorizontalAlignment','center'
 text(-(f_max+0.2)/2, 0, '\oslash', 'FontSize', 20, 'HorizontalAlignment','center')
 hold off
 set(gca,'fontsize',20)
-ylim([-ymax ymax])
+% ylim([-ymax ymax])
 xlim([-0.199 0.199])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
-% saveas(gcf,'4-Relative_phase_angle','png')
+saveas(gcf,'4-Relative_phase_angle','png')
 % saveas(gcf,'LPD4-Relative_phase_angle','png')
 % saveas(gcf,'SLPD4-Relative_phase_angle','png')
-close(h)
+% close(h)
 
 % Low-pass %
 nl      =  (abs(FFT_frequency) <= f_HL);
@@ -489,7 +510,7 @@ xlim([0 f_HL])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
 title('Low-pass')
-% saveas(gcf,'4-Relative_phase_angle_L','png')
+saveas(gcf,'4-Relative_phase_angle_L','png')
 % saveas(gcf,'LPD4-Relative_phase_angle_L','png')
 % saveas(gcf,'SLPD4-Relative_phase_angle_L','png')
 close(h)
@@ -504,9 +525,9 @@ hold on
 for i = 1:N_FILE
     xx  = FFT_frequency(n);
     yy  = angle(Y(n, i)) - angle(Y(n, 1));
-    if mod(i,10) == 1
+%     if mod(i,10) == 1
         plot(xx, yy, 'k-')
-    end
+%     end
     % Phase angle -> RV
     weight          = FFT_power(n,i)';
     [fitresult, gof]= createFit(xx, yy', weight);
@@ -522,7 +543,7 @@ xlim([f_HL f_max])
 xlabel('\xi [s/km]')
 ylabel('\Delta \phi [radian]')
 title('High-pass')
-% saveas(gcf,'4-Relative_phase_angle_H','png')
+saveas(gcf,'4-Relative_phase_angle_H','png')
 % saveas(gcf,'LPD4-Relative_phase_angle_H','png')
 % saveas(gcf,'SLPD4-Relative_phase_angle_H','png')
 close(h)
@@ -836,7 +857,7 @@ if 0
         scatter(xx, yy2-xx- mean(yy2-xx), 15, 'ko', 'MarkerFaceColor', 'k', 'MarkerFaceAlpha', 0.5)
         p0 = plot([min(xx), max(xx)], [0,0], 'k-', 'LineWidth', 3); p0.Color(4)=0.2;
         hold off
-        ylim([-0.24 0.24])
+        ylim([-0.6 0.6])
         ylabel('Residual [m/s]')
         set(gca,'fontsize',20)
         
@@ -866,7 +887,7 @@ if 0
         scatter(xx, yy2, 'kD')
         p0 = plot(xx, xx, 'k-', 'LineWidth', 3); p0.Color(4)=0.2;
         hold off
-        ylim([-0.1 10.1])
+        ylim([-0.5 10.1])
 %         title('RV Recovery')
         ylabel('Output RV [m/s]')
 %         daspect(ax1,[1 1 1])
@@ -930,8 +951,8 @@ if 0
         H1 = fitresult_H.p1;
         H2 = fitresult_H.p2;
         p4 = plot([min(xx), max(xx)], [H1*min(xx)+H2, H1*max(xx)+H2], 'k-', 'LineWidth', 2); p4.Color(4)=0.3;
-        xlim([-0.3 4.05])
-        ylim([-1.3 6.1])
+%         xlim([-0.3 4.05])
+%         ylim([-1.3 6.1])
 %         xlim([-35 35])
 %         xlabel('"Jitter" [m/s]')
         xlabel('Jitter (RV_{Gaussian}) [m/s]')
@@ -1139,7 +1160,7 @@ if 0
     ax2 = subplot(3,1,2); 
         rv_L        = yy2 - yyL;
         rv_H        = yyH - yy2;
-        rv_HL       = 0.5*rv_L/alpha + 0.5*rv_H;
+        rv_HL       = 0.5*rv_L + 0.5*rv_H *alpha;
         
         t_smooth    = linspace(1,N_FILE, 1000)';
         y_smooth1    = FUNCTION_GAUSSIAN_SMOOTHING(t, rv_L, t_smooth, s_len);
